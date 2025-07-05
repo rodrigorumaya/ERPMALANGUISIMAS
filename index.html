@@ -1,0 +1,2637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP Malanguísimas - Sistema Multiusuario</title>
+    
+    <!-- Firebase SDK v9+ -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            doc, 
+            updateDoc, 
+            deleteDoc, 
+            onSnapshot,
+            query,
+            orderBy,
+            serverTimestamp,
+            enableNetwork,
+            disableNetwork
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAA74GDCBz99C2c1J8ngoJwVaFXMRyHaLg",
+            authDomain: "erp-malanguisimas.firebaseapp.com",
+            projectId: "erp-malanguisimas",
+            storageBucket: "erp-malanguisimas.firebasestorage.app",
+            messagingSenderId: "168435151109",
+            appId: "1:168435151109:web:7c9eeb80a1a023fba1876c",
+            measurementId: "G-SL1MHR7V8S"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Hacer las funciones disponibles globalmente
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.doc = doc;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+        window.onSnapshot = onSnapshot;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.serverTimestamp = serverTimestamp;
+        window.enableNetwork = enableNetwork;
+        window.disableNetwork = disableNetwork;
+
+        // Indicar que Firebase está listo
+        window.firebaseReady = true;
+        window.dispatchEvent(new Event('firebaseReady'));
+    </script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        .hidden { display: none !important; }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f97316;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Indicador de sincronización -->
+    <div id="syncIndicator" class="fixed top-4 right-4 z-50">
+        <div class="bg-white rounded-lg shadow-lg px-4 py-2 flex items-center space-x-2">
+            <div id="syncStatus" class="flex items-center">
+                <div class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                <span class="text-sm text-gray-600">Conectando...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loader Global -->
+    <div id="globalLoader" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div class="loader mb-4"></div>
+            <p class="text-gray-600">Procesando...</p>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal -->
+    <div id="app" class="min-h-screen">
+        <!-- Barra Superior -->
+        <nav class="bg-white shadow-lg">
+            <div class="px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-fire text-2xl text-orange-500"></i>
+                    <h1 class="text-xl font-bold text-gray-800">Malanguísimas ERP</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        <i class="fas fa-users mr-1"></i>
+                        <span id="activeUsers">Sistema Multiusuario</span>
+                    </span>
+                    <button onclick="refreshData()" class="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 transition text-sm">
+                        <i class="fas fa-sync mr-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Contenido Principal -->
+        <div class="p-6">
+            <!-- Menú de navegación -->
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                    <button onclick="showSection('dashboard')" class="menu-btn px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition">
+                        <i class="fas fa-home mr-1"></i>Inicio
+                    </button>
+                    <button onclick="showSection('productos')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-box mr-1"></i>Productos
+                    </button>
+                    <button onclick="showSection('ventas')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-shopping-cart mr-1"></i>Ventas
+                    </button>
+                    <button onclick="showSection('compras')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-truck mr-1"></i>Compras
+                    </button>
+                    <button onclick="showSection('contabilidad')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-calculator mr-1"></i>Contabilidad
+                    </button>
+                    <button onclick="showSection('reportes')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-chart-bar mr-1"></i>Reportes
+                    </button>
+                    <button onclick="showSection('configuracion')" class="menu-btn px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        <i class="fas fa-cog mr-1"></i>Config
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sección Dashboard -->
+            <section id="dashboard" class="content-section">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Principal</h2>
+                
+                <!-- Tarjetas de métricas -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 text-sm">Ventas del Mes</p>
+                                <p class="text-2xl font-bold text-gray-800" id="ventasMes">$0.00</p>
+                            </div>
+                            <i class="fas fa-chart-line text-3xl text-green-500"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 text-sm">Productos en Stock</p>
+                                <p class="text-2xl font-bold text-gray-800" id="totalStock">0</p>
+                            </div>
+                            <i class="fas fa-box text-3xl text-blue-500"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 text-sm">Clientes Activos</p>
+                                <p class="text-2xl font-bold text-gray-800" id="clientesActivos">0</p>
+                            </div>
+                            <i class="fas fa-users text-3xl text-purple-500"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 text-sm">Utilidad Neta</p>
+                                <p class="text-2xl font-bold text-gray-800" id="utilidadNeta">$0.00</p>
+                            </div>
+                            <i class="fas fa-dollar-sign text-3xl text-orange-500"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Ventas por Sabor</h3>
+                        <div class="relative h-64">
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Tendencia de Ventas (7 días)</h3>
+                        <div class="relative h-64">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Productos -->
+            <section id="productos" class="content-section hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Gestión de Productos</h2>
+                    <button onclick="showProductForm()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition">
+                        <i class="fas fa-plus mr-2"></i>Nuevo Producto
+                    </button>
+                </div>
+
+                <!-- Formulario de Producto -->
+                <div id="productForm" class="hidden bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Agregar/Editar Producto</h3>
+                    <form id="productFormElement" onsubmit="saveProduct(event)">
+                        <input type="hidden" id="productId">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto</label>
+                                <input type="text" id="productName" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                                <select id="productCategory" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    <option value="chips">Chips de Malanga</option>
+                                    <option value="otros">Otros Productos</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tamaño</label>
+                                <select id="productSize" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    <option value="50g">50 gramos</option>
+                                    <option value="100g">100 gramos</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sabor</label>
+                                <select id="productFlavor" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    <option value="fuego">Fuego</option>
+                                    <option value="habanero">Habanero</option>
+                                    <option value="jalapeño">Jalapeño</option>
+                                    <option value="misterio">Misterio</option>
+                                    <option value="adobadas">Adobadas</option>
+                                    <option value="naturales">Naturales</option>
+                                    <option value="especias">Especias</option>
+                                    <option value="chipotle">Chipotle</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Precio Mayoreo</label>
+                                <input type="number" id="wholesalePrice" step="0.01" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Precio Menudeo</label>
+                                <input type="number" id="retailPrice" step="0.01" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Stock Inicial</label>
+                                <input type="number" id="initialStock" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Código de Barras</label>
+                                <input type="text" id="barcode" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                <i class="fas fa-save mr-2"></i>Guardar
+                            </button>
+                            <button type="button" onclick="hideProductForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Lista de Productos -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tamaño</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sabor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">P. Mayoreo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">P. Menudeo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsList" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                        <div class="flex justify-center">
+                                            <div class="loader"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Ventas -->
+            <section id="ventas" class="content-section hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Registro de Ventas</h2>
+                    <div class="flex gap-2">
+                        <button onclick="showSaleForm()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition">
+                            <i class="fas fa-plus mr-2"></i>Nueva Venta
+                        </button>
+                        <button onclick="showSaleStats()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                            <i class="fas fa-chart-bar mr-2"></i>Estadísticas
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Buscador de ventas -->
+                <div class="bg-white p-4 rounded-lg shadow mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar por cliente</label>
+                            <input type="text" id="searchCustomer" onkeyup="filterSales()" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Nombre del cliente...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+                            <input type="date" id="searchDateFrom" onchange="filterSales()" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+                            <input type="date" id="searchDateTo" onchange="filterSales()" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="clearSalesFilter()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition w-full">
+                                <i class="fas fa-eraser mr-2"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario de Venta -->
+                <div id="saleForm" class="hidden bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Registrar Venta</h3>
+                    <form id="saleFormElement" onsubmit="saveSale(event)">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                                <input type="text" id="customerName" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente</label>
+                                <select id="customerType" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" onchange="updateAllPrices()">
+                                    <option value="menudeo">Menudeo</option>
+                                    <option value="mayoreo">Mayoreo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                                <input type="date" id="saleDate" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                                <select id="paymentMethod" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    <option value="efectivo">Efectivo</option>
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="tarjeta">Tarjeta</option>
+                                    <option value="credito">Crédito</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Líneas de Venta -->
+                        <div class="border rounded p-4 mb-4">
+                            <h4 class="font-semibold text-gray-700 mb-3">Productos</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full">
+                                    <thead>
+                                        <tr class="text-xs text-gray-600">
+                                            <th class="text-left py-2">Producto</th>
+                                            <th class="text-center py-2">Cantidad</th>
+                                            <th class="text-right py-2">Precio</th>
+                                            <th class="text-right py-2">Subtotal</th>
+                                            <th class="text-center py-2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="saleLines"></tbody>
+                                </table>
+                            </div>
+                            <button type="button" onclick="addSaleLine()" class="mt-3 text-orange-600 hover:text-orange-700">
+                                <i class="fas fa-plus mr-1"></i>Agregar Producto
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                                <textarea id="saleNotes" rows="2" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded">
+                                <div class="flex justify-between mb-2">
+                                    <span>Subtotal:</span>
+                                    <span>$<span id="saleSubtotal">0.00</span></span>
+                                </div>
+                                <div class="flex justify-between mb-2">
+                                    <span>IVA (16%):</span>
+                                    <span>$<span id="saleTax">0.00</span></span>
+                                </div>
+                                <div class="flex justify-between font-bold text-lg">
+                                    <span>Total:</span>
+                                    <span>$<span id="saleTotal">0.00</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2">
+                            <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition">
+                                <i class="fas fa-check mr-2"></i>Registrar Venta
+                            </button>
+                            <button type="button" onclick="hideSaleForm()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Estadísticas de Ventas -->
+                <div id="saleStats" class="hidden bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Estadísticas de Ventas</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded text-center">
+                            <p class="text-sm text-gray-600">Ventas Hoy</p>
+                            <p class="text-2xl font-bold text-blue-600" id="salesToday">$0.00</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded text-center">
+                            <p class="text-sm text-gray-600">Ventas Semana</p>
+                            <p class="text-2xl font-bold text-green-600" id="salesWeek">$0.00</p>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded text-center">
+                            <p class="text-sm text-gray-600">Ventas Mes</p>
+                            <p class="text-2xl font-bold text-orange-600" id="salesMonth">$0.00</p>
+                        </div>
+                    </div>
+                    <button onclick="hideSaleStats()" class="mt-4 text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-times mr-1"></i>Cerrar
+                    </button>
+                </div>
+
+                <!-- Lista de Ventas -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Folio</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesList" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                        <div class="flex justify-center">
+                                            <div class="loader"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Compras -->
+            <section id="compras" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestión de Compras</h2>
+                    <p class="text-gray-600">Módulo de compras en desarrollo...</p>
+                </div>
+            </section>
+
+            <!-- Sección Contabilidad -->
+            <section id="contabilidad" class="content-section hidden">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Módulo de Contabilidad</h2>
+                
+                <!-- Menú de Contabilidad -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <button onclick="showAccountingSection('cuentas')" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition text-center">
+                        <i class="fas fa-list text-3xl text-blue-500 mb-2"></i>
+                        <p class="font-semibold">Catálogo de Cuentas</p>
+                    </button>
+                    <button onclick="showAccountingSection('polizas')" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition text-center">
+                        <i class="fas fa-file-invoice text-3xl text-green-500 mb-2"></i>
+                        <p class="font-semibold">Pólizas Contables</p>
+                    </button>
+                    <button onclick="showAccountingSection('balanza')" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition text-center">
+                        <i class="fas fa-balance-scale text-3xl text-purple-500 mb-2"></i>
+                        <p class="font-semibold">Balanza de Comprobación</p>
+                    </button>
+                    <button onclick="showAccountingSection('libro')" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition text-center">
+                        <i class="fas fa-book text-3xl text-orange-500 mb-2"></i>
+                        <p class="font-semibold">Libro Diario</p>
+                    </button>
+                </div>
+
+                <!-- Subsección Catálogo de Cuentas -->
+                <div id="cuentas-section" class="accounting-section hidden">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Catálogo de Cuentas</h3>
+                            <button onclick="showAccountForm()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-plus mr-2"></i>Nueva Cuenta
+                            </button>
+                        </div>
+
+                        <!-- Formulario de Cuenta -->
+                        <div id="accountForm" class="hidden border rounded-lg p-4 mb-4 bg-gray-50">
+                            <form id="accountFormElement" onsubmit="saveAccount(event)">
+                                <input type="hidden" id="accountId">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
+                                        <input type="text" id="accountNumber" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required placeholder="Ej: 1101">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Cuenta</label>
+                                        <input type="text" id="accountName" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required placeholder="Ej: Caja">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuenta</label>
+                                        <select id="accountType" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="Activo">Activo</option>
+                                            <option value="Pasivo">Pasivo</option>
+                                            <option value="Capital">Capital</option>
+                                            <option value="Ingreso">Ingreso</option>
+                                            <option value="Egreso">Egreso</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Naturaleza</label>
+                                        <select id="accountNature" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="Deudora">Deudora</option>
+                                            <option value="Acreedora">Acreedora</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Nivel</label>
+                                        <select id="accountLevel" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="1">Nivel 1 - Mayor</option>
+                                            <option value="2">Nivel 2 - Submay</option>
+                                            <option value="3">Nivel 3 - Cuenta</option>
+                                            <option value="4">Nivel 4 - Subcue</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Saldo Inicial</label>
+                                        <input type="number" id="accountBalance" step="0.01" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" value="0">
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex gap-2">
+                                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                        <i class="fas fa-save mr-2"></i>Guardar
+                                    </button>
+                                    <button type="button" onclick="hideAccountForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Cuentas -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cuenta</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Naturaleza</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="accountsList" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subsección Pólizas -->
+                <div id="polizas-section" class="accounting-section hidden">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Pólizas Contables</h3>
+                            <button onclick="showPolizaForm()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                <i class="fas fa-plus mr-2"></i>Nueva Póliza
+                            </button>
+                        </div>
+
+                        <!-- Formulario de Póliza -->
+                        <div id="polizaForm" class="hidden border rounded-lg p-4 mb-4 bg-gray-50">
+                            <form id="polizaFormElement" onsubmit="savePoliza(event)">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                                        <select id="polizaType" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                                            <option value="Ingreso">Póliza de Ingreso</option>
+                                            <option value="Egreso">Póliza de Egreso</option>
+                                            <option value="Diario">Póliza de Diario</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                                        <input type="date" id="polizaDate" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Folio</label>
+                                        <input type="text" id="polizaFolio" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label>
+                                        <input type="text" id="polizaReference" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Concepto</label>
+                                    <input type="text" id="polizaConcept" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                                </div>
+
+                                <!-- Movimientos -->
+                                <div class="border rounded p-4 mb-4">
+                                    <h4 class="font-semibold text-gray-700 mb-3">Movimientos</h4>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full">
+                                            <thead>
+                                                <tr class="text-xs text-gray-600 border-b">
+                                                    <th class="text-left py-2">Cuenta</th>
+                                                    <th class="text-left py-2">Concepto</th>
+                                                    <th class="text-right py-2">Cargo</th>
+                                                    <th class="text-right py-2">Abono</th>
+                                                    <th class="text-center py-2"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="polizaMovements"></tbody>
+                                            <tfoot>
+                                                <tr class="border-t font-semibold">
+                                                    <td colspan="2" class="py-2 text-right">Totales:</td>
+                                                    <td class="py-2 text-right">$<span id="totalCargo">0.00</span></td>
+                                                    <td class="py-2 text-right">$<span id="totalAbono">0.00</span></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    <button type="button" onclick="addPolizaMovement()" class="mt-3 text-green-600 hover:text-green-700">
+                                        <i class="fas fa-plus mr-1"></i>Agregar Movimiento
+                                    </button>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <div id="polizaBalance" class="text-sm">
+                                        <!-- Mensaje de balance aquí -->
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                            <i class="fas fa-save mr-2"></i>Guardar Póliza
+                                        </button>
+                                        <button type="button" onclick="hidePolizaForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Pólizas -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Folio</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Concepto</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="polizasList" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subsección Balanza -->
+                <div id="balanza-section" class="accounting-section hidden">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Balanza de Comprobación</h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Periodo desde</label>
+                                <input type="date" id="balanzaFrom" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Periodo hasta</label>
+                                <input type="date" id="balanzaTo" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="generateBalanza()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition">
+                                    <i class="fas fa-sync mr-2"></i>Generar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cuenta</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo Inicial</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cargos</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Abonos</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo Final</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="balanzaList" class="bg-white divide-y divide-gray-200"></tbody>
+                                <tfoot id="balanzaTotals" class="bg-gray-50 font-semibold"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subsección Libro Diario -->
+                <div id="libro-section" class="accounting-section hidden">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Libro Diario</h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+                                <input type="date" id="libroFrom" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+                                <input type="date" id="libroTo" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="generateLibroDiario()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition">
+                                    <i class="fas fa-book mr-2"></i>Generar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Póliza</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cuenta</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Concepto</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cargo</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Abono</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="libroDiarioList" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Reportes -->
+            <section id="reportes" class="content-section hidden">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Reportes Financieros</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <i class="fas fa-file-invoice-dollar text-4xl text-green-500 mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Estado de Resultados</h3>
+                        <p class="text-gray-600 mb-4">Genera el estado de resultados del período</p>
+                        <button onclick="generateReport('resultados')" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition w-full">
+                            <i class="fas fa-print mr-2"></i>Generar
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <i class="fas fa-boxes text-4xl text-indigo-500 mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Inventario</h3>
+                        <p class="text-gray-600 mb-4">Estado actual del inventario</p>
+                        <button onclick="generateReport('inventario')" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition w-full">
+                            <i class="fas fa-list mr-2"></i>Ver Inventario
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+                        <i class="fas fa-chart-pie text-4xl text-orange-500 mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Análisis de Ventas</h3>
+                        <p class="text-gray-600 mb-4">Reportes detallados de ventas</p>
+                        <button onclick="generateReport('ventas')" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition w-full">
+                            <i class="fas fa-chart-bar mr-2"></i>Analizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Visor de Reportes -->
+                <div id="reportViewer" class="hidden mt-6 bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 id="reportTitle" class="text-lg font-semibold text-gray-800"></h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.print()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-print text-xl"></i>
+                            </button>
+                            <button onclick="closeReportViewer()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="reportContent" class="overflow-x-auto"></div>
+                </div>
+            </section>
+
+            <!-- Sección Configuración -->
+            <section id="configuracion" class="content-section hidden">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuración del Sistema</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Estado del Sistema -->
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Estado del Sistema</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                <span class="text-sm text-gray-600">Estado Firebase:</span>
+                                <span id="firebaseStatus" class="font-semibold">
+                                    <i class="fas fa-circle text-gray-400 mr-1"></i>Verificando...
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                <span class="text-sm text-gray-600">Modo:</span>
+                                <span class="font-semibold">Multiusuario sin autenticación</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                <span class="text-sm text-gray-600">Sincronización:</span>
+                                <span class="font-semibold">Tiempo Real</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información de la Empresa -->
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Información de la Empresa</h3>
+                        <form id="empresaForm" onsubmit="saveCompanyInfo(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
+                                <input type="text" id="empresaNombre" value="Malanguísimas" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                <textarea id="empresaDescripcion" rows="3" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-orange-500">Chips de Malanga Artesanales</textarea>
+                            </div>
+                            <button type="submit" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition">
+                                <i class="fas fa-save mr-2"></i>Guardar Cambios
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let products = [];
+        let sales = [];
+        let accounts = [];
+        let polizas = [];
+        let currentSection = 'dashboard';
+        let unsubscribeProducts = null;
+        let unsubscribeSales = null;
+        let unsubscribeAccounts = null;
+        let unsubscribePolizas = null;
+        let chartInstances = {};
+        let isConnected = false;
+        let saleCounter = 1;
+        let polizaCounter = 1;
+
+        // Esperar a que Firebase esté listo
+        function waitForFirebase() {
+            if (window.firebaseReady) {
+                initializeApp();
+            } else {
+                window.addEventListener('firebaseReady', initializeApp);
+            }
+        }
+
+        // Inicializar la aplicación
+        async function initializeApp() {
+            console.log('Inicializando aplicación con Firebase...');
+            
+            try {
+                // Verificar conexión con Firebase
+                await testFirebaseConnection();
+                
+                // Establecer fecha actual
+                document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
+                
+                // Configurar listeners en tiempo real
+                setupRealtimeListeners();
+                
+                // Actualizar estado de conexión
+                updateConnectionStatus(true);
+                
+            } catch (error) {
+                console.error('Error inicializando:', error);
+                updateConnectionStatus(false);
+                showError('No se pudo conectar con Firebase. Verifica tu conexión.');
+            }
+        }
+
+        // Verificar conexión con Firebase
+        async function testFirebaseConnection() {
+            try {
+                const testRef = collection(db, 'test');
+                await getDocs(testRef);
+                console.log('✅ Conexión con Firebase exitosa');
+                isConnected = true;
+            } catch (error) {
+                console.error('❌ Error conectando con Firebase:', error);
+                isConnected = false;
+                throw error;
+            }
+        }
+
+        // Configurar listeners en tiempo real
+        function setupRealtimeListeners() {
+            // Listener para productos
+            const productsQuery = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+            unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
+                products = [];
+                snapshot.forEach((doc) => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+                updateProductsList();
+                updateDashboard();
+                console.log('📦 Productos actualizados:', products.length);
+            }, (error) => {
+                console.error('Error en listener de productos:', error);
+            });
+
+            // Listener para ventas
+            const salesQuery = query(collection(db, 'sales'), orderBy('createdAt', 'desc'));
+            unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
+                sales = [];
+                snapshot.forEach((doc) => {
+                    sales.push({ id: doc.id, ...doc.data() });
+                });
+                updateSalesList();
+                updateDashboard();
+                updateSaleStats();
+                console.log('🛒 Ventas actualizadas:', sales.length);
+            }, (error) => {
+                console.error('Error en listener de ventas:', error);
+            });
+
+            // Listener para cuentas contables
+            const accountsQuery = query(collection(db, 'accounts'), orderBy('accountNumber'));
+            unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+                accounts = [];
+                snapshot.forEach((doc) => {
+                    accounts.push({ id: doc.id, ...doc.data() });
+                });
+                updateAccountsList();
+                console.log('📊 Cuentas actualizadas:', accounts.length);
+            }, (error) => {
+                console.error('Error en listener de cuentas:', error);
+            });
+
+            // Listener para pólizas
+            const polizasQuery = query(collection(db, 'polizas'), orderBy('createdAt', 'desc'));
+            unsubscribePolizas = onSnapshot(polizasQuery, (snapshot) => {
+                polizas = [];
+                snapshot.forEach((doc) => {
+                    polizas.push({ id: doc.id, ...doc.data() });
+                });
+                updatePolizasList();
+                console.log('📄 Pólizas actualizadas:', polizas.length);
+            }, (error) => {
+                console.error('Error en listener de pólizas:', error);
+            });
+        }
+
+        // Actualizar estado de conexión
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('syncStatus');
+            const firebaseStatusEl = document.getElementById('firebaseStatus');
+            
+            if (connected) {
+                statusDiv.innerHTML = `
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2 pulse"></div>
+                    <span class="text-sm text-green-600">Conectado</span>
+                `;
+                firebaseStatusEl.innerHTML = '<i class="fas fa-circle text-green-500 mr-1"></i>Conectado';
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                    <span class="text-sm text-red-600">Sin conexión</span>
+                `;
+                firebaseStatusEl.innerHTML = '<i class="fas fa-circle text-red-500 mr-1"></i>Desconectado';
+            }
+        }
+
+        // Mostrar/ocultar loader
+        function showLoader() {
+            document.getElementById('globalLoader').classList.remove('hidden');
+        }
+
+        function hideLoader() {
+            document.getElementById('globalLoader').classList.add('hidden');
+        }
+
+        // Mostrar error
+        function showError(message) {
+            alert(message);
+        }
+
+        // Funciones de navegación
+        function showSection(section) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(section).classList.remove('hidden');
+            
+            document.querySelectorAll('.menu-btn').forEach(btn => {
+                btn.className = btn.className.replace('bg-orange-500 text-white', 'bg-gray-200 text-gray-700');
+            });
+            event.target.className = event.target.className.replace('bg-gray-200 text-gray-700', 'bg-orange-500 text-white');
+            
+            currentSection = section;
+        }
+
+        // Funciones de productos
+        function showProductForm() {
+            document.getElementById('productForm').classList.remove('hidden');
+            document.getElementById('productFormElement').reset();
+            document.getElementById('productId').value = '';
+        }
+
+        function hideProductForm() {
+            document.getElementById('productForm').classList.add('hidden');
+        }
+
+        async function saveProduct(event) {
+            event.preventDefault();
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            
+            const productId = document.getElementById('productId').value;
+            const productData = {
+                name: document.getElementById('productName').value,
+                category: document.getElementById('productCategory').value,
+                size: document.getElementById('productSize').value,
+                flavor: document.getElementById('productFlavor').value,
+                wholesalePrice: parseFloat(document.getElementById('wholesalePrice').value),
+                retailPrice: parseFloat(document.getElementById('retailPrice').value),
+                stock: parseInt(document.getElementById('initialStock').value),
+                barcode: document.getElementById('barcode').value || null
+            };
+            
+            try {
+                if (productId) {
+                    // Actualizar producto existente
+                    await updateDoc(doc(db, 'products', productId), {
+                        ...productData,
+                        updatedAt: serverTimestamp()
+                    });
+                    showError('Producto actualizado exitosamente');
+                } else {
+                    // Crear nuevo producto
+                    await addDoc(collection(db, 'products'), {
+                        ...productData,
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    showError('Producto guardado exitosamente');
+                }
+                
+                hideProductForm();
+            } catch (error) {
+                console.error('Error guardando producto:', error);
+                showError('Error al guardar el producto');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function editProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            document.getElementById('productId').value = productId;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productCategory').value = product.category;
+            document.getElementById('productSize').value = product.size;
+            document.getElementById('productFlavor').value = product.flavor;
+            document.getElementById('wholesalePrice').value = product.wholesalePrice;
+            document.getElementById('retailPrice').value = product.retailPrice;
+            document.getElementById('initialStock').value = product.stock;
+            document.getElementById('barcode').value = product.barcode || '';
+            
+            showProductForm();
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            
+            try {
+                await deleteDoc(doc(db, 'products', productId));
+                showError('Producto eliminado exitosamente');
+            } catch (error) {
+                console.error('Error eliminando producto:', error);
+                showError('Error al eliminar el producto');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function updateProductsList() {
+            const tbody = document.getElementById('productsList');
+            
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No hay productos registrados</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = products.map(product => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.size}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.flavor}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${product.stock < 10 ? 'text-red-600 font-bold' : 'text-gray-500'}">${product.stock}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${product.wholesalePrice.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${product.retailPrice.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editProduct('${product.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteProduct('${product.id}')" class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Funciones de ventas
+        function showSaleForm() {
+            document.getElementById('saleForm').classList.remove('hidden');
+            document.getElementById('saleFormElement').reset();
+            document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('saleLines').innerHTML = '';
+            addSaleLine();
+        }
+
+        function hideSaleForm() {
+            document.getElementById('saleForm').classList.add('hidden');
+        }
+
+        function addSaleLine() {
+            const lineId = Date.now();
+            const lineHTML = `
+                <tr data-line-id="${lineId}">
+                    <td class="py-2">
+                        <select class="product-select w-full px-2 py-1 border rounded text-sm" onchange="updateSaleLinePrice(${lineId})">
+                            <option value="">Seleccionar producto</option>
+                            ${products.map(p => `<option value="${p.id}" data-wholesale="${p.wholesalePrice}" data-retail="${p.retailPrice}">${p.name} - ${p.size} - ${p.flavor}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" class="quantity-input w-full px-2 py-1 border rounded text-sm text-center" placeholder="0" min="1" onchange="updateSaleTotal()">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" class="price-input w-full px-2 py-1 border rounded text-sm text-right" placeholder="0.00" step="0.01" readonly>
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" class="subtotal-input w-full px-2 py-1 border rounded text-sm text-right" placeholder="0.00" step="0.01" readonly>
+                    </td>
+                    <td class="py-2 text-center">
+                        <button type="button" onclick="removeSaleLine(${lineId})" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            document.getElementById('saleLines').insertAdjacentHTML('beforeend', lineHTML);
+        }
+
+        function updateSaleLinePrice(lineId) {
+            const line = document.querySelector(`[data-line-id="${lineId}"]`);
+            const productSelect = line.querySelector('.product-select');
+            const priceInput = line.querySelector('.price-input');
+            const customerType = document.getElementById('customerType').value;
+            
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+            if (selectedOption.value) {
+                const price = customerType === 'mayoreo' 
+                    ? parseFloat(selectedOption.dataset.wholesale)
+                    : parseFloat(selectedOption.dataset.retail);
+                priceInput.value = price.toFixed(2);
+            }
+            
+            updateSaleTotal();
+        }
+
+        function updateAllPrices() {
+            document.querySelectorAll('tr[data-line-id]').forEach(line => {
+                const lineId = line.dataset.lineId;
+                updateSaleLinePrice(lineId);
+            });
+        }
+
+        function removeSaleLine(lineId) {
+            document.querySelector(`[data-line-id="${lineId}"]`).remove();
+            updateSaleTotal();
+        }
+
+        function updateSaleTotal() {
+            let subtotal = 0;
+            document.querySelectorAll('tr[data-line-id]').forEach(line => {
+                const quantity = parseFloat(line.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(line.querySelector('.price-input').value) || 0;
+                const lineSubtotal = quantity * price;
+                line.querySelector('.subtotal-input').value = lineSubtotal.toFixed(2);
+                subtotal += lineSubtotal;
+            });
+            
+            const tax = subtotal * 0.16;
+            const total = subtotal + tax;
+            
+            document.getElementById('saleSubtotal').textContent = subtotal.toFixed(2);
+            document.getElementById('saleTax').textContent = tax.toFixed(2);
+            document.getElementById('saleTotal').textContent = total.toFixed(2);
+        }
+
+        async function saveSale(event) {
+            event.preventDefault();
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            const lines = [];
+            let hasValidLines = false;
+            
+            document.querySelectorAll('tr[data-line-id]').forEach(line => {
+                const productId = line.querySelector('.product-select').value;
+                const quantity = parseInt(line.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(line.querySelector('.price-input').value) || 0;
+                const subtotal = parseFloat(line.querySelector('.subtotal-input').value) || 0;
+                
+                if (productId && quantity > 0) {
+                    lines.push({ productId, quantity, price, subtotal });
+                    hasValidLines = true;
+                }
+            });
+            
+            if (!hasValidLines) {
+                showError('Agrega al menos un producto a la venta');
+                return;
+            }
+            
+            showLoader();
+            
+            // Obtener el siguiente folio
+            const folio = sales.length + 1;
+            
+            const saleData = {
+                folio: folio,
+                customerName: document.getElementById('customerName').value,
+                customerType: document.getElementById('customerType').value,
+                date: document.getElementById('saleDate').value,
+                paymentMethod: document.getElementById('paymentMethod').value,
+                lines: lines,
+                subtotal: parseFloat(document.getElementById('saleSubtotal').textContent),
+                tax: parseFloat(document.getElementById('saleTax').textContent),
+                total: parseFloat(document.getElementById('saleTotal').textContent),
+                notes: document.getElementById('saleNotes').value,
+                status: 'completada',
+                createdAt: serverTimestamp()
+            };
+            
+            try {
+                // Guardar venta
+                const saleRef = await addDoc(collection(db, 'sales'), saleData);
+                
+                // Actualizar stock de productos
+                for (const line of lines) {
+                    const productRef = doc(db, 'products', line.productId);
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        await updateDoc(productRef, {
+                            stock: product.stock - line.quantity
+                        });
+                    }
+                }
+                
+                // Crear póliza contable automática
+                await createVentaPoliza(saleData);
+                
+                showError('Venta registrada exitosamente');
+                hideSaleForm();
+            } catch (error) {
+                console.error('Error registrando venta:', error);
+                showError('Error al registrar la venta');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function updateSalesList() {
+            const tbody = document.getElementById('salesList');
+            
+            if (sales.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No hay ventas registradas</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = sales.map(sale => {
+                const folio = `V-${String(sale.folio || '0').padStart(5, '0')}`;
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${folio}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.customerName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.customerType === 'mayoreo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                ${sale.customerType}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.paymentMethod || 'efectivo'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.total.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === 'cancelada' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                                ${sale.status || 'completada'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="viewSaleDetail('${sale.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="printTicket('${sale.id}')" class="text-gray-600 hover:text-gray-900 mr-2" title="Imprimir ticket">
+                                <i class="fas fa-print"></i>
+                            </button>
+                            ${sale.status !== 'cancelada' ? `
+                                <button onclick="cancelSale('${sale.id}')" class="text-red-600 hover:text-red-900" title="Cancelar venta">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function viewSale(saleId) {
+            viewSaleDetail(saleId);
+        }
+
+        // Actualizar dashboard
+        function updateDashboard() {
+            // Calcular métricas
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const ventasMes = sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+            }).reduce((sum, sale) => sum + sale.total, 0);
+            
+            const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
+            const clientesUnicos = new Set(sales.map(s => s.customerName)).size;
+            const utilidadNeta = ventasMes * 0.3; // 30% de margen estimado
+            
+            // Actualizar valores
+            document.getElementById('ventasMes').textContent = `$${ventasMes.toFixed(2)}`;
+            document.getElementById('totalStock').textContent = totalStock;
+            document.getElementById('clientesActivos').textContent = clientesUnicos;
+            document.getElementById('utilidadNeta').textContent = `$${utilidadNeta.toFixed(2)}`;
+            
+            // Actualizar gráficos
+            updateCharts();
+        }
+
+        function updateCharts() {
+            // Destruir gráficos existentes
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // Gráfico de ventas por sabor
+            const salesByFlavor = {};
+            sales.forEach(sale => {
+                sale.lines.forEach(line => {
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        salesByFlavor[product.flavor] = (salesByFlavor[product.flavor] || 0) + line.subtotal;
+                    }
+                });
+            });
+            
+            const ctx1 = document.getElementById('salesChart');
+            if (ctx1 && Object.keys(salesByFlavor).length > 0) {
+                chartInstances.salesChart = new Chart(ctx1.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(salesByFlavor),
+                        datasets: [{
+                            data: Object.values(salesByFlavor),
+                            backgroundColor: [
+                                '#ff6384', '#ff9f40', '#4bc0c0', '#9966ff', 
+                                '#ffce56', '#36a2eb', '#ff6384', '#c9c9c9'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de tendencia
+            const last7Days = [];
+            const salesByDay = {};
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                last7Days.push(dateStr);
+                salesByDay[dateStr] = 0;
+            }
+            
+            sales.forEach(sale => {
+                if (salesByDay.hasOwnProperty(sale.date)) {
+                    salesByDay[sale.date] += sale.total;
+                }
+            });
+            
+            const ctx2 = document.getElementById('trendChart');
+            if (ctx2) {
+                chartInstances.trendChart = new Chart(ctx2.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: last7Days.map(d => {
+                            const date = new Date(d);
+                            return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+                        }),
+                        datasets: [{
+                            label: 'Ventas',
+                            data: last7Days.map(date => salesByDay[date]),
+                            borderColor: 'rgb(251, 146, 60)',
+                            backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Funciones de reportes
+        function generateReport(type) {
+            const viewer = document.getElementById('reportViewer');
+            const title = document.getElementById('reportTitle');
+            const content = document.getElementById('reportContent');
+            
+            viewer.classList.remove('hidden');
+            
+            switch(type) {
+                case 'inventario':
+                    const totalValue = products.reduce((sum, p) => sum + (p.stock * p.wholesalePrice), 0);
+                    
+                    title.textContent = 'Reporte de Inventario';
+                    content.innerHTML = `
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 p-4 rounded">
+                                <p class="text-lg font-semibold">Resumen</p>
+                                <p>Total de productos: ${products.length}</p>
+                                <p>Unidades totales: ${products.reduce((sum, p) => sum + p.stock, 0)}</p>
+                                <p>Valor total: $${totalValue.toFixed(2)}</p>
+                            </div>
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left">Producto</th>
+                                        <th class="px-4 py-2 text-center">Stock</th>
+                                        <th class="px-4 py-2 text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${products.map(p => `
+                                        <tr class="${p.stock < 10 ? 'bg-red-50' : ''}">
+                                            <td class="px-4 py-2">${p.name} ${p.size} - ${p.flavor}</td>
+                                            <td class="px-4 py-2 text-center ${p.stock < 10 ? 'text-red-600 font-bold' : ''}">${p.stock}</td>
+                                            <td class="px-4 py-2 text-right">$${(p.stock * p.wholesalePrice).toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'ventas':
+                    const salesByProduct = {};
+                    const salesByType = { mayoreo: 0, menudeo: 0 };
+                    
+                    sales.forEach(sale => {
+                        salesByType[sale.customerType] += sale.total;
+                        sale.lines.forEach(line => {
+                            const product = products.find(p => p.id === line.productId);
+                            if (product) {
+                                const key = `${product.name} ${product.size}`;
+                                salesByProduct[key] = (salesByProduct[key] || 0) + line.subtotal;
+                            }
+                        });
+                    });
+                    
+                    title.textContent = 'Análisis de Ventas';
+                    content.innerHTML = `
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="font-bold text-lg mb-3">Ventas por Tipo de Cliente</h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-blue-50 p-4 rounded">
+                                        <p class="text-sm text-gray-600">Mayoreo</p>
+                                        <p class="text-2xl font-bold text-blue-600">$${salesByType.mayoreo.toFixed(2)}</p>
+                                    </div>
+                                    <div class="bg-green-50 p-4 rounded">
+                                        <p class="text-sm text-gray-600">Menudeo</p>
+                                        <p class="text-2xl font-bold text-green-600">$${salesByType.menudeo.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h3 class="font-bold text-lg mb-3">Ventas por Producto</h3>
+                                <table class="min-w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left">Producto</th>
+                                            <th class="px-4 py-2 text-right">Total Vendido</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${Object.entries(salesByProduct)
+                                            .sort((a, b) => b[1] - a[1])
+                                            .map(([product, total]) => `
+                                                <tr>
+                                                    <td class="px-4 py-2">${product}</td>
+                                                    <td class="px-4 py-2 text-right font-semibold">$${total.toFixed(2)}</td>
+                                                </tr>
+                                            `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'resultados':
+                    const ventas = sales.reduce((sum, s) => sum + s.total, 0);
+                    const costoVentas = ventas * 0.6;
+                    const utilidadBruta = ventas - costoVentas;
+                    const gastosOperacion = ventas * 0.2;
+                    const utilidadOperacion = utilidadBruta - gastosOperacion;
+                    const isr = utilidadOperacion * 0.3;
+                    const utilidadNeta = utilidadOperacion - isr;
+                    
+                    title.textContent = 'Estado de Resultados';
+                    content.innerHTML = `
+                        <table class="min-w-full">
+                            <tbody>
+                                <tr class="border-b">
+                                    <td class="py-2">Ventas Netas</td>
+                                    <td class="py-2 text-right">$${ventas.toFixed(2)}</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="py-2">(-) Costo de Ventas</td>
+                                    <td class="py-2 text-right">$${costoVentas.toFixed(2)}</td>
+                                </tr>
+                                <tr class="font-bold bg-gray-50 border-b">
+                                    <td class="py-2">Utilidad Bruta</td>
+                                    <td class="py-2 text-right">$${utilidadBruta.toFixed(2)}</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="py-2">(-) Gastos de Operación</td>
+                                    <td class="py-2 text-right">$${gastosOperacion.toFixed(2)}</td>
+                                </tr>
+                                <tr class="font-bold bg-gray-50 border-b">
+                                    <td class="py-2">Utilidad de Operación</td>
+                                    <td class="py-2 text-right">$${utilidadOperacion.toFixed(2)}</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="py-2">(-) ISR (30%)</td>
+                                    <td class="py-2 text-right">$${isr.toFixed(2)}</td>
+                                </tr>
+                                <tr class="font-bold bg-gray-100">
+                                    <td class="py-2">UTILIDAD NETA</td>
+                                    <td class="py-2 text-right">$${utilidadNeta.toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+            }
+        }
+
+        function showReport(title, content) {
+            document.getElementById('reportTitle').textContent = title;
+            document.getElementById('reportContent').innerHTML = content;
+            document.getElementById('reportViewer').classList.remove('hidden');
+        }
+
+        function closeReportViewer() {
+            document.getElementById('reportViewer').classList.add('hidden');
+        }
+
+        // Función para actualizar datos manualmente
+        async function refreshData() {
+            showLoader();
+            try {
+                await testFirebaseConnection();
+                updateConnectionStatus(true);
+                showError('Datos actualizados');
+            } catch (error) {
+                updateConnectionStatus(false);
+                showError('Error al actualizar');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Guardar información de la empresa
+        async function saveCompanyInfo(event) {
+            event.preventDefault();
+            showError('Información guardada localmente');
+        }
+
+        // Limpiar listeners al salir
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeProducts) unsubscribeProducts();
+            if (unsubscribeSales) unsubscribeSales();
+            if (unsubscribeAccounts) unsubscribeAccounts();
+            if (unsubscribePolizas) unsubscribePolizas();
+        });
+
+        // Funciones adicionales de ventas
+        function showSaleStats() {
+            document.getElementById('saleStats').classList.remove('hidden');
+            updateSaleStats();
+        }
+
+        function hideSaleStats() {
+            document.getElementById('saleStats').classList.add('hidden');
+        }
+
+        function updateSaleStats() {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Ventas de hoy
+            const salesToday = sales.filter(s => s.date === todayStr)
+                .reduce((sum, s) => sum + s.total, 0);
+            
+            // Ventas de la semana
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - 7);
+            const salesWeek = sales.filter(s => new Date(s.date) >= weekStart)
+                .reduce((sum, s) => sum + s.total, 0);
+            
+            // Ventas del mes
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const salesMonth = sales.filter(s => new Date(s.date) >= monthStart)
+                .reduce((sum, s) => sum + s.total, 0);
+            
+            document.getElementById('salesToday').textContent = `${salesToday.toFixed(2)}`;
+            document.getElementById('salesWeek').textContent = `${salesWeek.toFixed(2)}`;
+            document.getElementById('salesMonth').textContent = `${salesMonth.toFixed(2)}`;
+        }
+
+        function filterSales() {
+            const searchCustomer = document.getElementById('searchCustomer').value.toLowerCase();
+            const dateFrom = document.getElementById('searchDateFrom').value;
+            const dateTo = document.getElementById('searchDateTo').value;
+            
+            const filteredSales = sales.filter(sale => {
+                const matchCustomer = !searchCustomer || sale.customerName.toLowerCase().includes(searchCustomer);
+                const matchDateFrom = !dateFrom || sale.date >= dateFrom;
+                const matchDateTo = !dateTo || sale.date <= dateTo;
+                return matchCustomer && matchDateFrom && matchDateTo;
+            });
+            
+            updateSalesListFiltered(filteredSales);
+        }
+
+        function clearSalesFilter() {
+            document.getElementById('searchCustomer').value = '';
+            document.getElementById('searchDateFrom').value = '';
+            document.getElementById('searchDateTo').value = '';
+            updateSalesList();
+        }
+
+        function updateSalesListFiltered(filteredSales) {
+            const tbody = document.getElementById('salesList');
+            
+            if (filteredSales.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No se encontraron ventas con los filtros aplicados</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filteredSales.map(sale => {
+                const folio = `V-${String(sale.folio || '0').padStart(5, '0')}`;
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${folio}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.customerName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.customerType === 'mayoreo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                ${sale.customerType}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.paymentMethod || 'efectivo'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sale.total.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === 'cancelada' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                                ${sale.status || 'completada'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="viewSaleDetail('${sale.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="printTicket('${sale.id}')" class="text-gray-600 hover:text-gray-900 mr-2" title="Imprimir ticket">
+                                <i class="fas fa-print"></i>
+                            </button>
+                            ${sale.status !== 'cancelada' ? `
+                                <button onclick="cancelSale('${sale.id}')" class="text-red-600 hover:text-red-900" title="Cancelar venta">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function cancelSale(saleId) {
+            if (!confirm('¿Estás seguro de cancelar esta venta? Se revertirá el inventario.')) return;
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            
+            try {
+                const sale = sales.find(s => s.id === saleId);
+                if (!sale) throw new Error('Venta no encontrada');
+                
+                // Actualizar estado de la venta
+                await updateDoc(doc(db, 'sales', saleId), {
+                    status: 'cancelada',
+                    cancelledAt: serverTimestamp()
+                });
+                
+                // Revertir inventario
+                for (const line of sale.lines) {
+                    const productRef = doc(db, 'products', line.productId);
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        await updateDoc(productRef, {
+                            stock: product.stock + line.quantity
+                        });
+                    }
+                }
+                
+                // Crear póliza de cancelación
+                await createCancelacionPoliza(sale);
+                
+                showError('Venta cancelada exitosamente');
+            } catch (error) {
+                console.error('Error cancelando venta:', error);
+                showError('Error al cancelar la venta');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function printTicket(saleId) {
+            const sale = sales.find(s => s.id === saleId);
+            if (!sale) return;
+            
+            const ticketWindow = window.open('', 'PRINT', 'height=600,width=400');
+            const folio = `V-${String(sale.folio || '0').padStart(5, '0')}`;
+            
+            let itemsHTML = '';
+            sale.lines.forEach(line => {
+                const product = products.find(p => p.id === line.productId);
+                itemsHTML += `
+                    <tr>
+                        <td>${product ? product.name : 'Producto'}</td>
+                        <td style="text-align: center;">${line.quantity}</td>
+                        <td style="text-align: right;">${line.price.toFixed(2)}</td>
+                        <td style="text-align: right;">${line.subtotal.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            ticketWindow.document.write(`
+                <html>
+                <head>
+                    <title>Ticket ${folio}</title>
+                    <style>
+                        body { font-family: monospace; font-size: 12px; margin: 20px; }
+                        h1, h2 { text-align: center; margin: 10px 0; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 5px; border-bottom: 1px solid #ddd; }
+                        .total { font-size: 16px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>MALANGUÍSIMAS</h1>
+                    <h2>Chips de Malanga</h2>
+                    <p>Folio: ${folio}</p>
+                    <p>Fecha: ${sale.date}</p>
+                    <p>Cliente: ${sale.customerName}</p>
+                    <p>Tipo: ${sale.customerType}</p>
+                    <hr>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cant</th>
+                                <th>Precio</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML}
+                        </tbody>
+                    </table>
+                    <hr>
+                    <p class="total" style="text-align: right;">TOTAL: ${sale.total.toFixed(2)}</p>
+                    <p style="text-align: center; margin-top: 20px;">¡Gracias por su compra!</p>
+                </body>
+                </html>
+            `);
+            
+            ticketWindow.document.close();
+            ticketWindow.focus();
+            ticketWindow.print();
+        }
+
+        async function viewSaleDetail(saleId) {
+            const sale = sales.find(s => s.id === saleId);
+            if (!sale) return;
+            
+            const folio = `V-${String(sale.folio || '0').padStart(5, '0')}`;
+            
+            let detailsHTML = `
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Folio:</p>
+                        <p class="font-semibold">${folio}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Estado:</p>
+                        <p class="font-semibold ${sale.status === 'cancelada' ? 'text-red-600' : 'text-green-600'}">${sale.status || 'completada'}</p>
+                    </div>
+                </div>
+                <h4 class="font-semibold mb-2">Productos:</h4>
+                <table class="min-w-full mb-4">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs">Producto</th>
+                            <th class="px-4 py-2 text-center text-xs">Cant</th>
+                            <th class="px-4 py-2 text-right text-xs">Precio</th>
+                            <th class="px-4 py-2 text-right text-xs">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            for (const line of sale.lines) {
+                const product = products.find(p => p.id === line.productId);
+                detailsHTML += `
+                    <tr class="border-b">
+                        <td class="px-4 py-2">${product ? `${product.name} ${product.size}` : 'Producto eliminado'}</td>
+                        <td class="px-4 py-2 text-center">${line.quantity}</td>
+                        <td class="px-4 py-2 text-right">${line.price.toFixed(2)}</td>
+                        <td class="px-4 py-2 text-right">${line.subtotal.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
+            
+            const subtotal = sale.total / 1.16;
+            const tax = sale.total - subtotal;
+            
+            detailsHTML += `
+                    </tbody>
+                </table>
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="flex justify-between mb-2">
+                        <span>Subtotal:</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>IVA (16%):</span>
+                        <span>${tax.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span>${sale.total.toFixed(2)}</span>
+                    </div>
+                </div>
+                ${sale.notes ? `<div class="mt-4"><p class="text-sm text-gray-600">Notas:</p><p>${sale.notes}</p></div>` : ''}
+            `;
+            
+            const content = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Cliente:</p>
+                            <p class="font-semibold">${sale.customerName}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Tipo:</p>
+                            <p class="font-semibold">${sale.customerType}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Fecha:</p>
+                            <p class="font-semibold">${sale.date}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Método de Pago:</p>
+                            <p class="font-semibold">${sale.paymentMethod || 'efectivo'}</p>
+                        </div>
+                    </div>
+                    <div>${detailsHTML}</div>
+                </div>
+            `;
+            
+            showReport('Detalle de Venta', content);
+        }
+
+        // Funciones de contabilidad
+        function showAccountingSection(section) {
+            document.querySelectorAll('.accounting-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`${section}-section`).classList.remove('hidden');
+            
+            // Cargar cuentas iniciales si no existen
+            if (accounts.length === 0) {
+                createDefaultAccounts();
+            }
+        }
+
+        async function createDefaultAccounts() {
+            const defaultAccounts = [
+                { number: '1000', name: 'ACTIVO', type: 'Activo', nature: 'Deudora', level: '1', balance: 0 },
+                { number: '1100', name: 'ACTIVO CIRCULANTE', type: 'Activo', nature: 'Deudora', level: '2', balance: 0 },
+                { number: '1101', name: 'Caja', type: 'Activo', nature: 'Deudora', level: '3', balance: 0 },
+                { number: '1102', name: 'Bancos', type: 'Activo', nature: 'Deudora', level: '3', balance: 0 },
+                { number: '1103', name: 'Clientes', type: 'Activo', nature: 'Deudora', level: '3', balance: 0 },
+                { number: '1104', name: 'Inventarios', type: 'Activo', nature: 'Deudora', level: '3', balance: 0 },
+                { number: '2000', name: 'PASIVO', type: 'Pasivo', nature: 'Acreedora', level: '1', balance: 0 },
+                { number: '2100', name: 'PASIVO CORTO PLAZO', type: 'Pasivo', nature: 'Acreedora', level: '2', balance: 0 },
+                { number: '2101', name: 'Proveedores', type: 'Pasivo', nature: 'Acreedora', level: '3', balance: 0 },
+                { number: '3000', name: 'CAPITAL', type: 'Capital', nature: 'Acreedora', level: '1', balance: 0 },
+                { number: '3001', name: 'Capital Social', type: 'Capital', nature: 'Acreedora', level: '3', balance: 0 },
+                { number: '4000', name: 'INGRESOS', type: 'Ingreso', nature: 'Acreedora', level: '1', balance: 0 },
+                { number: '4001', name: 'Ventas', type: 'Ingreso', nature: 'Acreedora', level: '3', balance: 0 },
+                { number: '5000', name: 'EGRESOS', type: 'Egreso', nature: 'Deudora', level: '1', balance: 0 },
+                { number: '5001', name: 'Costo de Ventas', type: 'Egreso', nature: 'Deudora', level: '3', balance: 0 }
+            ];
+            
+            for (const account of defaultAccounts) {
+                const exists = accounts.find(a => a.accountNumber === account.number);
+                if (!exists && isConnected) {
+                    await addDoc(collection(db, 'accounts'), {
+                        accountNumber: account.number,
+                        accountName: account.name,
+                        accountType: account.type,
+                        accountNature: account.nature,
+                        accountLevel: account.level,
+                        balance: account.balance,
+                        createdAt: serverTimestamp()
+                    });
+                }
+            }
+        }
+
+        function showAccountForm() {
+            document.getElementById('accountForm').classList.remove('hidden');
+            document.getElementById('accountFormElement').reset();
+            document.getElementById('accountId').value = '';
+        }
+
+        function hideAccountForm() {
+            document.getElementById('accountForm').classList.add('hidden');
+        }
+
+        async function saveAccount(event) {
+            event.preventDefault();
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            
+            const accountId = document.getElementById('accountId').value;
+            const accountData = {
+                accountNumber: document.getElementById('accountNumber').value,
+                accountName: document.getElementById('accountName').value,
+                accountType: document.getElementById('accountType').value,
+                accountNature: document.getElementById('accountNature').value,
+                accountLevel: document.getElementById('accountLevel').value,
+                balance: parseFloat(document.getElementById('accountBalance').value) || 0
+            };
+            
+            try {
+                if (accountId) {
+                    await updateDoc(doc(db, 'accounts', accountId), {
+                        ...accountData,
+                        updatedAt: serverTimestamp()
+                    });
+                    showError('Cuenta actualizada exitosamente');
+                } else {
+                    await addDoc(collection(db, 'accounts'), {
+                        ...accountData,
+                        createdAt: serverTimestamp()
+                    });
+                    showError('Cuenta creada exitosamente');
+                }
+                
+                hideAccountForm();
+            } catch (error) {
+                console.error('Error guardando cuenta:', error);
+                showError('Error al guardar la cuenta');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function updateAccountsList() {
+            const tbody = document.getElementById('accountsList');
+            
+            if (!tbody) return;
+            
+            if (accounts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay cuentas registradas</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = accounts.map(account => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.accountNumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.accountName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.accountType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.accountNature}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${(account.balance || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editAccount('${account.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function editAccount(accountId) {
+            const account = accounts.find(a => a.id === accountId);
+            if (!account) return;
+            
+            document.getElementById('accountId').value = accountId;
+            document.getElementById('accountNumber').value = account.accountNumber;
+            document.getElementById('accountName').value = account.accountName;
+            document.getElementById('accountType').value = account.accountType;
+            document.getElementById('accountNature').value = account.accountNature;
+            document.getElementById('accountLevel').value = account.accountLevel;
+            document.getElementById('accountBalance').value = account.balance || 0;
+            
+            showAccountForm();
+        }
+
+        // Funciones de pólizas
+        function showPolizaForm() {
+            document.getElementById('polizaForm').classList.remove('hidden');
+            document.getElementById('polizaFormElement').reset();
+            document.getElementById('polizaDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('polizaMovements').innerHTML = '';
+            generatePolizaFolio();
+            // Agregar dos líneas iniciales
+            addPolizaMovement();
+            addPolizaMovement();
+        }
+
+        function hidePolizaForm() {
+            document.getElementById('polizaForm').classList.add('hidden');
+        }
+
+        function generatePolizaFolio() {
+            const type = document.getElementById('polizaType').value;
+            const prefix = type.charAt(0);
+            const date = new Date();
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const folio = `${prefix}-${year}${month}-${String(polizaCounter++).padStart(4, '0')}`;
+            document.getElementById('polizaFolio').value = folio;
+        }
+
+        function addPolizaMovement() {
+            const movementId = Date.now();
+            const movementHTML = `
+                <tr data-movement-id="${movementId}">
+                    <td class="py-2">
+                        <select class="account-select w-full px-2 py-1 border rounded text-sm" required>
+                            <option value="">Seleccionar cuenta</option>
+                            ${accounts.filter(a => a.accountLevel === '3' || a.accountLevel === '4').map(a => 
+                                `<option value="${a.accountNumber}">${a.accountNumber} - ${a.accountName}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="text" class="concept-input w-full px-2 py-1 border rounded text-sm" required>
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" class="cargo-input w-full px-2 py-1 border rounded text-sm text-right" step="0.01" onchange="updatePolizaTotals()">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" class="abono-input w-full px-2 py-1 border rounded text-sm text-right" step="0.01" onchange="updatePolizaTotals()">
+                    </td>
+                    <td class="py-2 text-center">
+                        <button type="button" onclick="removePolizaMovement(${movementId})" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            document.getElementById('polizaMovements').insertAdjacentHTML('beforeend', movementHTML);
+        }
+
+        function removePolizaMovement(movementId) {
+            document.querySelector(`[data-movement-id="${movementId}"]`).remove();
+            updatePolizaTotals();
+        }
+
+        function updatePolizaTotals() {
+            let totalCargo = 0;
+            let totalAbono = 0;
+            
+            document.querySelectorAll('#polizaMovements tr').forEach(row => {
+                totalCargo += parseFloat(row.querySelector('.cargo-input').value) || 0;
+                totalAbono += parseFloat(row.querySelector('.abono-input').value) || 0;
+            });
+            
+            document.getElementById('totalCargo').textContent = totalCargo.toFixed(2);
+            document.getElementById('totalAbono').textContent = totalAbono.toFixed(2);
+            
+            // Verificar balance
+            const balance = Math.abs(totalCargo - totalAbono);
+            const balanceDiv = document.getElementById('polizaBalance');
+            
+            if (balance < 0.01) {
+                balanceDiv.innerHTML = '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Póliza balanceada</span>';
+            } else {
+                balanceDiv.innerHTML = `<span class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Diferencia: ${balance.toFixed(2)}</span>`;
+            }
+        }
+
+        async function savePoliza(event) {
+            event.preventDefault();
+            
+            if (!isConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            const totalCargo = parseFloat(document.getElementById('totalCargo').textContent);
+            const totalAbono = parseFloat(document.getElementById('totalAbono').textContent);
+            
+            if (Math.abs(totalCargo - totalAbono) > 0.01) {
+                showError('La póliza debe estar balanceada');
+                return;
+            }
+            
+            const movements = [];
+            let hasValidMovements = false;
+            
+            document.querySelectorAll('#polizaMovements tr').forEach(row => {
+                const accountNumber = row.querySelector('.account-select').value;
+                const concept = row.querySelector('.concept-input').value;
+                const cargo = parseFloat(row.querySelector('.cargo-input').value) || 0;
+                const abono = parseFloat(row.querySelector('.abono-input').value) || 0;
+                
+                if (accountNumber && concept && (cargo > 0 || abono > 0)) {
+                    movements.push({ accountNumber, concept, cargo, abono });
+                    hasValidMovements = true;
+                }
+            });
+            
+            if (!hasValidMovements || movements.length < 2) {
+                showError('La póliza debe tener al menos 2 movimientos válidos');
+                return;
+            }
+            
+            showLoader();
+            
+            const polizaData = {
+                type: document.getElementById('polizaType').value,
+                date: document.getElementById('polizaDate').value,
+                folio: document.getElementById('polizaFolio').value,
+                reference: document.getElementById('polizaReference').value,
+                concept: document.getElementById('polizaConcept').value,
+                movements: movements,
+                totalCargo: totalCargo,
+                totalAbono: totalAbono,
+                createdAt: serverTimestamp()
+            };
+            
+            try {
+                await addDoc(collection(db, 'polizas'), polizaData);
+                
+                // Actualizar saldos de cuentas
+                for (const mov of movements) {
+                    const account = accounts.find(a => a.accountNumber === mov.accountNumber);
+                    if (account) {
+                        let newBalance = account.balance || 0;
+                        
+                        if (account.accountNature === 'Deudora') {
+                            newBalance += mov.cargo - mov.abono;
+                        } else {
+                            newBalance += mov.abono - mov.cargo;
+                        }
+                        
+                        await updateDoc(doc(db, 'accounts', account.id), {
+                            balance: newBalance
+                        });
+                    }
+                }
+                
+                showError('Póliza guardada exitosamente');
+                hidePolizaForm();
+            } catch (error) {
+                console.error('Error guardando póliza:', error);
+                showError('Error al guardar la póliza');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function updatePolizasList() {
+            const tbody = document.getElementById('polizasList');
+            
+            if (!tbody) return;
+            
+            if (polizas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay pólizas registradas</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = polizas.map(poliza => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${poliza.date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${poliza.type === 'Ingreso' ? 'bg-green-100 text-green-800' : 
+                              poliza.type === 'Egreso' ? 'bg-red-100 text-red-800' : 
+                              'bg-blue-100 text-blue-800'}">
+                            ${poliza.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${poliza.folio}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${poliza.concept}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${poliza.totalCargo.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="viewPoliza('${poliza.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function viewPoliza(polizaId) {
+            const poliza = polizas.find(p => p.id === polizaId);
+            if (!poliza) return;
+            
+            let movementsHTML = `
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs">Cuenta</th>
+                            <th class="px-4 py-2 text-left text-xs">Concepto</th>
+                            <th class="px-4 py-2 text-right text-xs">Cargo</th>
+                            <th class="px-4 py-2 text-right text-xs">Abono</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            poliza.movements.forEach(mov => {
+                const account = accounts.find(a => a.accountNumber === mov.accountNumber);
+                movementsHTML += `
+                    <tr class="border-b">
+                        <td class="px-4 py-2 text-sm">${mov.accountNumber} - ${account ? account.accountName : ''}</td>
+                        <td class="px-4 py-2 text-sm">${mov.concept}</td>
+                        <td class="px-4 py-2 text-sm text-right">${mov.cargo > 0 ? `${mov.cargo.toFixed(2)}` : ''}</td>
+                        <td class="px-4 py-2 text-sm text-right">${mov.abono > 0 ? `${mov.abono.toFixed(2)}` : ''}</td>
+                    </tr>
+                `;
+            });
+            
+            movementsHTML += `
+                    </tbody>
+                    <tfoot class="bg-gray-50 font-semibold">
+                        <tr>
+                            <td colspan="2" class="px-4 py-2 text-right">Totales:</td>
+                            <td class="px-4 py-2 text-right">${poliza.totalCargo.toFixed(2)}</td>
+                            <td class="px-4 py-2 text-right">${poliza.totalAbono.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+            const content = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Tipo:</p>
+                            <p class="font-semibold">${poliza.type}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Folio:</p>
+                            <p class="font-semibold">${poliza.folio}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Fecha:</p>
+                            <p class="font-semibold">${poliza.date}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Referencia:</p>
+                            <p class="font-semibold">${poliza.reference || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Concepto:</p>
+                        <p class="font-semibold">${poliza.concept}</p>
+                    </div>
+                    <div>${movementsHTML}</div>
+                </div>
+            `;
+            
+            showReport('Detalle de Póliza', content);
+        }
+
+        // Crear póliza automática para ventas
+        async function createVentaPoliza(sale) {
+            const folio = `I-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(polizaCounter++).padStart(4, '0')}`;
+            
+            const movements = [
+                {
+                    accountNumber: '1101',
+                    concept: `Venta a ${sale.customerName}`,
+                    cargo: sale.total,
+                    abono: 0
+                },
+                {
+                    accountNumber: '4001',
+                    concept: `Venta a ${sale.customerName}`,
+                    cargo: 0,
+                    abono: sale.total
+                }
+            ];
+            
+            await addDoc(collection(db, 'polizas'), {
+                type: 'Ingreso',
+                date: sale.date,
+                folio: folio,
+                reference: `Venta ${sale.folio}`,
+                concept: `Venta de productos a ${sale.customerName}`,
+                movements: movements,
+                totalCargo: sale.total,
+                totalAbono: sale.total,
+                createdAt: serverTimestamp()
+            });
+        }
+
+        // Crear póliza de cancelación
+        async function createCancelacionPoliza(sale) {
+            const folio = `D-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(polizaCounter++).padStart(4, '0')}`;
+            
+            const movements = [
+                {
+                    accountNumber: '4001',
+                    concept: `Cancelación venta ${sale.folio}`,
+                    cargo: sale.total,
+                    abono: 0
+                },
+                {
+                    accountNumber: '1101',
+                    concept: `Cancelación venta ${sale.folio}`,
+                    cargo: 0,
+                    abono: sale.total
+                }
+            ];
+            
+            await addDoc(collection(db, 'polizas'), {
+                type: 'Diario',
+                date: new Date().toISOString().split('T')[0],
+                folio: folio,
+                reference: `Cancelación V-${sale.folio}`,
+                concept: `Cancelación de venta a ${sale.customerName}`,
+                movements: movements,
+                totalCargo: sale.total,
+                totalAbono: sale.total,
+                createdAt: serverTimestamp()
+            });
+        }
+
+        // Generar balanza de comprobación
+        async function generateBalanza() {
+            const dateFrom = document.getElementById('balanzaFrom').value;
+            const dateTo = document.getElementById('balanzaTo').value;
+            
+            if (!dateFrom || !dateTo) {
+                showError('Selecciona el periodo');
+                return;
+            }
+            
+            const tbody = document.getElementById('balanzaList');
+            tbody.innerHTML = '';
+            
+            let totalSaldoInicial = 0;
+            let totalCargos = 0;
+            let totalAbonos = 0;
+            let totalSaldoFinal = 0;
+            
+            for (const account of accounts) {
+                let cargos = 0;
+                let abonos = 0;
+                
+                // Calcular movimientos del periodo
+                polizas.forEach(poliza => {
+                    if (poliza.date >= dateFrom && poliza.date <= dateTo) {
+                        poliza.movements.forEach(mov => {
+                            if (mov.accountNumber === account.accountNumber) {
+                                cargos += mov.cargo;
+                                abonos += mov.abono;
+                            }
+                        });
+                    }
+                });
+                
+                const saldoInicial = account.balance || 0;
+                let saldoFinal = saldoInicial;
+                
+                if (account.accountNature === 'Deudora') {
+                    saldoFinal += cargos - abonos;
+                } else {
+                    saldoFinal += abonos - cargos;
+                }
+                
+                // Solo mostrar cuentas con movimientos o saldo
+                if (saldoInicial !== 0 || cargos !== 0 || abonos !== 0) {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.accountNumber}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.accountName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${Math.abs(saldoInicial).toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${cargos.toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${abonos.toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">${Math.abs(saldoFinal).toFixed(2)}</td>
+                        </tr>
+                    `;
+                    
+                    totalSaldoInicial += Math.abs(saldoInicial);
+                    totalCargos += cargos;
+                    totalAbonos += abonos;
+                    totalSaldoFinal += Math.abs(saldoFinal);
+                }
+            }
+            
+            // Totales
+            document.getElementById('balanzaTotals').innerHTML = `
+                <tr>
+                    <td colspan="2" class="px-6 py-4 text-right font-bold">TOTALES:</td>
+                    <td class="px-6 py-4 text-right font-bold">${totalSaldoInicial.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right font-bold">${totalCargos.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right font-bold">${totalAbonos.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right font-bold">${totalSaldoFinal.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+
+        // Generar libro diario
+        async function generateLibroDiario() {
+            const dateFrom = document.getElementById('libroFrom').value;
+            const dateTo = document.getElementById('libroTo').value;
+            
+            if (!dateFrom || !dateTo) {
+                showError('Selecciona el periodo');
+                return;
+            }
+            
+            const tbody = document.getElementById('libroDiarioList');
+            tbody.innerHTML = '';
+            
+            const filteredPolizas = polizas.filter(p => p.date >= dateFrom && p.date <= dateTo)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            filteredPolizas.forEach(poliza => {
+                poliza.movements.forEach(mov => {
+                    const account = accounts.find(a => a.accountNumber === mov.accountNumber);
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${poliza.date}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${poliza.folio}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${mov.accountNumber} - ${account ? account.accountName : ''}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${mov.concept}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${mov.cargo > 0 ? `${mov.cargo.toFixed(2)}` : ''}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${mov.abono > 0 ? `${mov.abono.toFixed(2)}` : ''}</td>
+                        </tr>
+                    `;
+                });
+            });
+            
+            if (filteredPolizas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay movimientos en el periodo seleccionado</td></tr>';
+            }
+        }
+
+        // Limpiar listeners al salir
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeProducts) unsubscribeProducts();
+            if (unsubscribeSales) unsubscribeSales();
+            if (unsubscribeAccounts) unsubscribeAccounts();
+            if (unsubscribePolizas) unsubscribePolizas();
+        });
+
+        // Iniciar aplicación cuando se carga la página
+        document.addEventListener('DOMContentLoaded', waitForFirebase);
+
+        // Reconexión automática
+        window.addEventListener('online', () => {
+            console.log('Conexión restablecida');
+            refreshData();
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Sin conexión');
+            updateConnectionStatus(false);
+        });
+    </script>
+</body>
+</html>
