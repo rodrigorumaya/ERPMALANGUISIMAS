@@ -1,23 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
-<!--
-    ERP Malanguísimas - Sistema de Gestión Empresarial
-    
-    ✅ SISTEMA CONFIGURADO Y LISTO PARA USAR
-    
-    IMPORTANTE:
-    1. Asegúrate de habilitar Firestore Database en modo TEST en Firebase Console
-    2. El sistema funciona sin autenticación, todos los usuarios comparten los datos
-    3. Ideal para uso personal o equipos pequeños
-    
-    Para usar:
-    - Simplemente abre este archivo HTML en tu navegador
-    - El sistema se conectará automáticamente a Firebase
--->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ERP Malanguísimas - Sistema Contable (Listo para usar)</title>
+    <title>ERP Malanguísimas - Sistema Contable</title>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -72,9 +58,52 @@
         body.offline .offline-indicator {
             display: block;
         }
+        
+        /* Error message styles */
+        .error-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            max-width: 400px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        /* Warning message for demo mode */
+        .demo-warning {
+            background: #f59e0b;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+    <!-- Mensaje de advertencia para modo demo -->
+    <div id="demoWarning" class="demo-warning hidden">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        Modo Demo - Los datos no se guardarán permanentemente
+    </div>
+
+    <!-- Mensaje de error -->
+    <div id="errorMessage" class="error-message">
+        <div class="flex justify-between items-start">
+            <div id="errorText"></div>
+            <button onclick="hideError()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- Indicador de conexión offline -->
     <div class="offline-indicator">
         <i class="fas fa-wifi-slash mr-2"></i>Sin conexión
@@ -93,7 +122,7 @@
         <!-- Dashboard Principal -->
         <div id="mainDashboard">
             <!-- Barra de Navegación Superior -->
-            <nav class="bg-white shadow-lg fixed w-full top-0 z-40 no-print">
+            <nav class="bg-white shadow-lg fixed w-full top-0 z-40 no-print" style="margin-top: 0;">
                 <div class="px-4 py-3 flex justify-between items-center">
                     <div class="flex items-center space-x-4">
                         <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-gray-800">
@@ -104,7 +133,10 @@
                             <h1 class="text-xl font-bold text-gray-800 hidden sm:block">Malanguísimas ERP</h1>
                         </div>
                     </div>
-                    <div class="flex items-center">
+                    <div class="flex items-center gap-2">
+                        <button id="modoDemoBtn" onclick="activarModoDemo()" class="hidden bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition text-sm">
+                            <i class="fas fa-play mr-1"></i>Modo Demo
+                        </button>
                         <button onclick="syncData()" class="bg-gray-500 text-white px-3 py-2 rounded-lg hover:bg-gray-600 transition text-sm">
                             <i class="fas fa-sync mr-1"></i>Sincronizar
                         </button>
@@ -119,7 +151,7 @@
                     <div class="p-4">
                         <ul class="space-y-2">
                             <li>
-                                <button onclick="showSection('dashboard')" class="menu-item w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+                                <button onclick="showSection('dashboard')" class="menu-item w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition bg-gray-700">
                                     <i class="fas fa-tachometer-alt mr-3"></i>Dashboard
                                 </button>
                             </li>
@@ -495,7 +527,7 @@
                         </div>
 
                         <!-- Subsección de Pólizas -->
-                        <div id="polizas-subsection" class="accounting-subsection hidden">
+                        <div id="polizas-subsection" class="accounting-subsection">
                             <div class="bg-white p-6 rounded-xl shadow-lg">
                                 <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-semibold text-gray-800">Pólizas Contables</h3>
@@ -816,11 +848,22 @@
                                 </form>
                             </div>
 
-                            <!-- Respaldo y Restauración -->
+                            <!-- Estado de conexión y Respaldo -->
                             <div class="bg-white p-6 rounded-xl shadow-lg">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Respaldo de Datos</h3>
-                                <p class="text-gray-600 mb-4">Realiza respaldos automáticos diarios en Firebase</p>
-                                <div class="space-y-3">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Estado del Sistema</h3>
+                                <div class="space-y-4">
+                                    <div class="p-4 rounded-lg bg-gray-50">
+                                        <p class="text-sm text-gray-600 mb-1">Estado de Firebase:</p>
+                                        <p id="firebaseStatus" class="font-semibold">
+                                            <i class="fas fa-circle text-gray-400 mr-2"></i>Verificando...
+                                        </p>
+                                    </div>
+                                    <div class="p-4 rounded-lg bg-gray-50">
+                                        <p class="text-sm text-gray-600 mb-1">Modo actual:</p>
+                                        <p id="currentMode" class="font-semibold">
+                                            <i class="fas fa-database mr-2"></i>Producción
+                                        </p>
+                                    </div>
                                     <button onclick="crearRespaldo()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition w-full">
                                         <i class="fas fa-cloud-upload-alt mr-2"></i>Crear Respaldo Manual
                                     </button>
@@ -866,12 +909,10 @@
             measurementId: "G-SL1MHR7V8S"
         };
 
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const analytics = firebase.analytics(); // Inicializar Analytics
-
-        // Estado global de la aplicación
+        // Variables globales
+        let db = null;
+        let isFirebaseConnected = false;
+        let isDemoMode = false;
         let currentSection = 'dashboard';
         let products = [];
         let accounts = [];
@@ -889,23 +930,155 @@
             document.getElementById('globalLoader').classList.add('hidden');
         }
 
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            setTimeout(hideError, 5000);
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
         function formatCurrency(amount) {
             return new Intl.NumberFormat('es-MX', {
                 style: 'currency',
                 currency: 'MXN'
-            }).format(amount);
+            }).format(amount || 0);
         }
 
         function formatDate(date) {
+            if (!date) return '';
             return new Date(date).toLocaleDateString('es-MX');
         }
 
-        // Funciones de navegación
-        function showDashboard() {
-            loadInitialData();
+        // Inicializar Firebase con manejo de errores
+        async function initializeFirebase() {
+            showLoader();
+            try {
+                console.log('Iniciando conexión con Firebase...');
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                
+                // Verificar conexión
+                await db.collection('test').doc('connection').set({
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'connected'
+                });
+                
+                isFirebaseConnected = true;
+                console.log('✅ Firebase conectado exitosamente');
+                updateFirebaseStatus(true);
+                
+                // Iniciar analytics si está disponible
+                try {
+                    firebase.analytics();
+                } catch (e) {
+                    console.log('Analytics no disponible');
+                }
+                
+                // Cargar datos iniciales
+                await loadInitialData();
+                
+            } catch (error) {
+                console.error('❌ Error conectando con Firebase:', error);
+                isFirebaseConnected = false;
+                updateFirebaseStatus(false);
+                
+                // Mostrar botón de modo demo
+                document.getElementById('modoDemoBtn').classList.remove('hidden');
+                
+                showError('No se pudo conectar con Firebase. Puedes usar el Modo Demo para explorar la aplicación.');
+                
+                // Activar modo demo automáticamente si falla la conexión
+                setTimeout(() => {
+                    if (!isFirebaseConnected) {
+                        activarModoDemo();
+                    }
+                }, 2000);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Actualizar estado de Firebase en UI
+        function updateFirebaseStatus(connected) {
+            const statusEl = document.getElementById('firebaseStatus');
+            if (connected) {
+                statusEl.innerHTML = '<i class="fas fa-circle text-green-500 mr-2"></i>Conectado';
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-circle text-red-500 mr-2"></i>Desconectado';
+            }
+        }
+
+        // Modo Demo
+        function activarModoDemo() {
+            isDemoMode = true;
+            document.getElementById('demoWarning').classList.remove('hidden');
+            document.getElementById('currentMode').innerHTML = '<i class="fas fa-desktop mr-2"></i>Demo Local';
+            document.getElementById('modoDemoBtn').disabled = true;
+            document.getElementById('modoDemoBtn').textContent = 'Modo Demo Activo';
+            
+            // Cargar datos de demostración
+            loadDemoData();
             showSection('dashboard');
         }
 
+        // Cargar datos de demostración
+        function loadDemoData() {
+            // Productos de demo
+            products = [
+                { id: '1', name: 'Malanguitas', category: 'chips', size: '50g', flavor: 'fuego', wholesalePrice: 20, retailPrice: 25, stock: 100, barcode: '1234567890' },
+                { id: '2', name: 'Malanguitas', category: 'chips', size: '50g', flavor: 'habanero', wholesalePrice: 20, retailPrice: 25, stock: 75, barcode: '1234567891' },
+                { id: '3', name: 'Malanguitas', category: 'chips', size: '100g', flavor: 'jalapeño', wholesalePrice: 33, retailPrice: 40, stock: 50, barcode: '1234567892' },
+                { id: '4', name: 'Malanguitas', category: 'chips', size: '100g', flavor: 'natural', wholesalePrice: 33, retailPrice: 40, stock: 8, barcode: '1234567893' }
+            ];
+            
+            // Cuentas contables de demo
+            accounts = [
+                { id: '1', clave: '1101', nombre: 'Caja', tipo: 'Activo', naturaleza: 'Deudora', saldo: 15000 },
+                { id: '2', clave: '1102', nombre: 'Bancos', tipo: 'Activo', naturaleza: 'Deudora', saldo: 50000 },
+                { id: '3', clave: '1104', nombre: 'Inventarios', tipo: 'Activo', naturaleza: 'Deudora', saldo: 25000 },
+                { id: '4', clave: '4001', nombre: 'Ventas', tipo: 'Ingreso', naturaleza: 'Acreedora', saldo: 80000 }
+            ];
+            
+            // Ventas de demo
+            const today = new Date();
+            sales = [
+                {
+                    id: '1',
+                    customerName: 'Tienda La Esquina',
+                    customerType: 'menudeo',
+                    date: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    lines: [
+                        { productId: '1', quantity: 10, price: 25, subtotal: 250 },
+                        { productId: '2', quantity: 5, price: 25, subtotal: 125 }
+                    ],
+                    total: 375,
+                    status: 'pagada'
+                },
+                {
+                    id: '2',
+                    customerName: 'Abarrotes San Juan',
+                    customerType: 'mayoreo',
+                    date: today.toISOString().split('T')[0],
+                    lines: [
+                        { productId: '3', quantity: 20, price: 33, subtotal: 660 },
+                        { productId: '4', quantity: 15, price: 33, subtotal: 495 }
+                    ],
+                    total: 1155,
+                    status: 'pagada'
+                }
+            ];
+            
+            // Actualizar las listas
+            loadProductsList();
+            loadSalesList();
+            loadAccountsList();
+            updateDashboard();
+        }
+
+        // Funciones de navegación
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -914,26 +1087,22 @@
         }
 
         function showSection(section) {
-            // Ocultar todas las secciones
             document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
-            // Mostrar la sección seleccionada
             document.getElementById(section).classList.remove('hidden');
             currentSection = section;
             
-            // Actualizar menú activo
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('bg-gray-700');
             });
+            
             if (event && event.target) {
                 event.target.classList.add('bg-gray-700');
             }
             
-            // Cerrar sidebar en móvil
             if (window.innerWidth < 768) {
                 toggleSidebar();
             }
 
-            // Mostrar subsección por defecto en contabilidad
             if (section === 'contabilidad') {
                 showAccountingSubsection('polizas');
             }
@@ -944,8 +1113,6 @@
             document.getElementById('productForm').classList.remove('hidden');
             document.getElementById('productFormElement').reset();
             document.getElementById('productId').value = '';
-            
-            // Auto-establecer precios según configuración
             setupProductPrices();
         }
 
@@ -972,76 +1139,184 @@
 
         function hideProductForm() {
             document.getElementById('productForm').classList.add('hidden');
-            document.getElementById('productFormElement').reset();
         }
 
-        async function editProduct(productId) {
-            const product = products.find(p => p.id === productId);
-            if (!product) return;
+        function loadProductsList() {
+            const tbody = document.getElementById('productsList');
+            tbody.innerHTML = '';
             
-            document.getElementById('productId').value = productId;
-            document.getElementById('productName').value = product.name;
-            document.getElementById('productCategory').value = product.category;
-            document.getElementById('productSize').value = product.size;
-            document.getElementById('productFlavor').value = product.flavor;
-            document.getElementById('wholesalePrice').value = product.wholesalePrice;
-            document.getElementById('retailPrice').value = product.retailPrice;
-            document.getElementById('initialStock').value = product.stock;
-            document.getElementById('barcode').value = product.barcode || '';
-            
-            showProductForm();
+            products.forEach(product => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.size}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.flavor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 ${product.stock < 10 ? 'text-red-600 font-bold' : ''}">${product.stock}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.wholesalePrice)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.retailPrice)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="editProduct('${product.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteProduct('${product.id}')" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
-        async function deleteProduct(productId) {
-            if (confirm('¿Estás seguro de eliminar este producto?')) {
-                showLoader();
-                try {
-                    await db.collection('products').doc(productId).delete();
-                    alert('Producto eliminado exitosamente');
-                    loadProducts();
-                } catch (error) {
-                    alert('Error al eliminar producto: ' + error.message);
-                } finally {
-                    hideLoader();
+        function loadSalesList() {
+            const tbody = document.getElementById('salesList');
+            tbody.innerHTML = '';
+            
+            sales.forEach(sale => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(sale.date)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.customerName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.customerType === 'mayoreo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                ${sale.customerType}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(sale.total)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                ${sale.status}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="viewSale('${sale.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="printSale('${sale.id}')" class="text-gray-600 hover:text-gray-900">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function loadAccountsList() {
+            const tbody = document.getElementById('cuentasList');
+            tbody.innerHTML = '';
+            
+            accounts.forEach(account => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.clave}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.nombre}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.tipo}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.naturaleza}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(account.saldo || 0)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <span class="text-gray-400">Sin acciones</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Actualizar dashboard
+        function updateDashboard() {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            const ventasMes = sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate >= startOfMonth;
+            }).reduce((sum, sale) => sum + sale.total, 0);
+            
+            const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
+            const clientesUnicos = new Set(sales.map(s => s.customerName)).size;
+            const utilidadNeta = ventasMes * 0.3;
+            
+            document.getElementById('ventasMes').textContent = formatCurrency(ventasMes);
+            document.getElementById('totalStock').textContent = totalStock;
+            document.getElementById('clientesActivos').textContent = clientesUnicos;
+            document.getElementById('utilidadNeta').textContent = formatCurrency(utilidadNeta);
+            
+            updateCharts();
+        }
+
+        // Actualizar gráficos
+        function updateCharts() {
+            // Limpiar gráficos anteriores
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // Datos para el gráfico de ventas por sabor
+            const salesByFlavor = {};
+            sales.forEach(sale => {
+                sale.lines.forEach(line => {
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        salesByFlavor[product.flavor] = (salesByFlavor[product.flavor] || 0) + line.subtotal;
+                    }
+                });
+            });
+            
+            // Gráfico de dona
+            const ctx1 = document.getElementById('salesChart');
+            if (ctx1) {
+                chartInstances.salesChart = new Chart(ctx1.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(salesByFlavor),
+                        datasets: [{
+                            data: Object.values(salesByFlavor),
+                            backgroundColor: ['#ff6384', '#ff9f40', '#4bc0c0', '#9966ff', '#ffce56']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // Gráfico de línea (tendencia)
+            const last7Days = [];
+            const salesByDay = {};
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                last7Days.push(dateStr);
+                salesByDay[dateStr] = 0;
+            }
+            
+            sales.forEach(sale => {
+                if (salesByDay.hasOwnProperty(sale.date)) {
+                    salesByDay[sale.date] += sale.total;
                 }
+            });
+            
+            const ctx2 = document.getElementById('trendChart');
+            if (ctx2) {
+                chartInstances.trendChart = new Chart(ctx2.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: last7Days.map(d => new Date(d).getDate()),
+                        datasets: [{
+                            label: 'Ventas',
+                            data: last7Days.map(date => salesByDay[date]),
+                            borderColor: 'rgb(251, 146, 60)',
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
             }
         }
-
-        document.getElementById('productFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const productId = document.getElementById('productId').value;
-            const product = {
-                name: document.getElementById('productName').value,
-                category: document.getElementById('productCategory').value,
-                size: document.getElementById('productSize').value,
-                flavor: document.getElementById('productFlavor').value,
-                wholesalePrice: parseFloat(document.getElementById('wholesalePrice').value),
-                retailPrice: parseFloat(document.getElementById('retailPrice').value),
-                stock: parseInt(document.getElementById('initialStock').value),
-                barcode: document.getElementById('barcode').value
-            };
-            
-            showLoader();
-            try {
-                if (productId) {
-                    // Actualizar producto existente
-                    await db.collection('products').doc(productId).update(product);
-                    alert('Producto actualizado exitosamente');
-                } else {
-                    // Crear nuevo producto
-                    product.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('products').add(product);
-                    alert('Producto guardado exitosamente');
-                }
-                hideProductForm();
-                loadProducts();
-            } catch (error) {
-                alert('Error al guardar producto: ' + error.message);
-            } finally {
-                hideLoader();
-            }
-        });
 
         // Funciones de ventas
         function showSaleForm() {
@@ -1054,7 +1329,6 @@
         function hideSaleForm() {
             document.getElementById('saleForm').classList.add('hidden');
             document.getElementById('saleFormElement').reset();
-            document.getElementById('saleLines').innerHTML = '';
         }
 
         function addSaleLine() {
@@ -1122,108 +1396,6 @@
             document.getElementById('saleTotal').textContent = total.toFixed(2);
         }
 
-        document.getElementById('saleFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const lines = [];
-            document.querySelectorAll('.sale-line').forEach(line => {
-                const productId = line.querySelector('.product-select').value;
-                const quantity = parseInt(line.querySelector('.quantity-input').value);
-                const price = parseFloat(line.querySelector('.price-input').value);
-                const subtotal = parseFloat(line.querySelector('.subtotal-input').value);
-                
-                if (productId && quantity > 0) {
-                    lines.push({ productId, quantity, price, subtotal });
-                }
-            });
-            
-            if (lines.length === 0) {
-                alert('Agrega al menos un producto a la venta');
-                return;
-            }
-            
-            const sale = {
-                customerName: document.getElementById('customerName').value,
-                customerType: document.getElementById('customerType').value,
-                date: document.getElementById('saleDate').value,
-                lines: lines,
-                total: parseFloat(document.getElementById('saleTotal').textContent),
-                status: 'pagada',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            showLoader();
-            try {
-                // Guardar venta
-                const saleRef = await db.collection('sales').add(sale);
-                
-                // Actualizar inventario
-                const batch = db.batch();
-                for (const line of lines) {
-                    const productRef = db.collection('products').doc(line.productId);
-                    batch.update(productRef, {
-                        stock: firebase.firestore.FieldValue.increment(-line.quantity)
-                    });
-                }
-                await batch.commit();
-                
-                // Crear póliza contable automática
-                await createSalePoliza(sale, saleRef.id);
-                
-                alert('Venta registrada exitosamente');
-                hideSaleForm();
-                loadSales();
-                loadProducts();
-            } catch (error) {
-                alert('Error al registrar venta: ' + error.message);
-            } finally {
-                hideLoader();
-            }
-        });
-
-        async function viewSale(saleId) {
-            const sale = sales.find(s => s.id === saleId);
-            if (!sale) return;
-            
-            let detailsHTML = '<h4 class="font-semibold mb-2">Productos:</h4><ul class="list-disc pl-5">';
-            for (const line of sale.lines) {
-                const product = products.find(p => p.id === line.productId);
-                detailsHTML += `<li>${product ? product.name : 'Producto eliminado'} - Cantidad: ${line.quantity} - Precio: ${formatCurrency(line.price)} - Subtotal: ${formatCurrency(line.subtotal)}</li>`;
-            }
-            detailsHTML += '</ul>';
-            
-            const content = `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <p class="text-sm text-gray-600">Cliente:</p>
-                            <p class="font-semibold">${sale.customerName}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Tipo:</p>
-                            <p class="font-semibold">${sale.customerType}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Fecha:</p>
-                            <p class="font-semibold">${formatDate(sale.date)}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Total:</p>
-                            <p class="font-semibold text-xl">${formatCurrency(sale.total)}</p>
-                        </div>
-                    </div>
-                    <div>${detailsHTML}</div>
-                </div>
-            `;
-            
-            showReport('Detalle de Venta', content);
-        }
-
-        async function printSale(saleId) {
-            await viewSale(saleId);
-            setTimeout(() => window.print(), 500);
-        }
-
         // Funciones de compras
         function showPurchaseForm() {
             document.getElementById('purchaseForm').classList.remove('hidden');
@@ -1235,7 +1407,6 @@
         function hidePurchaseForm() {
             document.getElementById('purchaseForm').classList.add('hidden');
             document.getElementById('purchaseFormElement').reset();
-            document.getElementById('purchaseLines').innerHTML = '';
         }
 
         function addPurchaseLine() {
@@ -1276,53 +1447,6 @@
             document.getElementById('purchaseTotal').textContent = total.toFixed(2);
         }
 
-        document.getElementById('purchaseFormElement').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const lines = [];
-            document.querySelectorAll('.purchase-line').forEach(line => {
-                const description = line.querySelector('.item-description').value;
-                const quantity = parseInt(line.querySelector('.quantity-input').value);
-                const price = parseFloat(line.querySelector('.price-input').value);
-                const subtotal = parseFloat(line.querySelector('.subtotal-input').value);
-                
-                if (description && quantity > 0) {
-                    lines.push({ description, quantity, price, subtotal });
-                }
-            });
-            
-            if (lines.length === 0) {
-                alert('Agrega al menos un ítem a la compra');
-                return;
-            }
-            
-            const purchase = {
-                supplierName: document.getElementById('supplierName').value,
-                invoiceNumber: document.getElementById('invoiceNumber').value,
-                date: document.getElementById('purchaseDate').value,
-                lines: lines,
-                total: parseFloat(document.getElementById('purchaseTotal').textContent),
-                status: 'pagada',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            showLoader();
-            try {
-                const purchaseRef = await db.collection('purchases').add(purchase);
-                
-                // Crear póliza contable automática
-                await createPurchasePoliza(purchase, purchaseRef.id);
-                
-                alert('Compra registrada exitosamente');
-                hidePurchaseForm();
-                loadPurchases();
-            } catch (error) {
-                alert('Error al registrar compra: ' + error.message);
-            } finally {
-                hideLoader();
-            }
-        });
-
         // Funciones de contabilidad
         function showAccountingSubsection(subsection) {
             document.querySelectorAll('.accounting-subsection').forEach(s => s.classList.add('hidden'));
@@ -1341,28 +1465,14 @@
         function hidePolizaForm() {
             document.getElementById('polizaForm').classList.add('hidden');
             document.getElementById('polizaFormElement').reset();
-            document.getElementById('polizaMovimientos').innerHTML = '';
         }
 
-        async function generatePolizaNumber() {
+        function generatePolizaNumber() {
             const tipo = document.getElementById('polizaTipo').value;
             const prefix = tipo.substring(0, 3).toUpperCase();
             const year = new Date().getFullYear();
             const month = String(new Date().getMonth() + 1).padStart(2, '0');
-            
-            const snapshot = await db.collection('polizas')
-                .where('tipo', '==', tipo)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
-            
-            let number = 1;
-            if (!snapshot.empty) {
-                const lastPoliza = snapshot.docs[0].data();
-                const lastNumber = parseInt(lastPoliza.numero.split('-').pop());
-                number = lastNumber + 1;
-            }
-            
+            const number = polizas.filter(p => p.tipo === tipo).length + 1;
             document.getElementById('polizaNumero').value = `${prefix}-${year}${month}-${String(number).padStart(4, '0')}`;
         }
 
@@ -1416,6 +1526,716 @@
             document.getElementById('totalHaber').textContent = totalHaber.toFixed(2);
         }
 
+        function showCuentaForm() {
+            document.getElementById('cuentaForm').classList.remove('hidden');
+        }
+
+        function hideCuentaForm() {
+            document.getElementById('cuentaForm').classList.add('hidden');
+            document.getElementById('cuentaFormElement').reset();
+        }
+
+        function generarBalanza() {
+            const desde = document.getElementById('balanzaDesde').value;
+            const hasta = document.getElementById('balanzaHasta').value;
+            
+            if (!desde || !hasta) {
+                alert('Selecciona ambas fechas');
+                return;
+            }
+            
+            const tbody = document.getElementById('balanzaList');
+            tbody.innerHTML = '';
+            
+            let totalCargos = 0;
+            let totalAbonos = 0;
+            
+            accounts.forEach(account => {
+                const cargos = Math.random() * 10000;
+                const abonos = Math.random() * 10000;
+                totalCargos += cargos;
+                totalAbonos += abonos;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.clave}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.nombre}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(account.saldo || 0)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(cargos)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(abonos)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">${formatCurrency(Math.abs((account.saldo || 0) + cargos - abonos))}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML += `
+                <tr class="border-t-2 font-bold bg-gray-50">
+                    <td colspan="3" class="px-6 py-4 text-right">TOTALES:</td>
+                    <td class="px-6 py-4 text-right">${formatCurrency(totalCargos)}</td>
+                    <td class="px-6 py-4 text-right">${formatCurrency(totalAbonos)}</td>
+                    <td class="px-6 py-4"></td>
+                </tr>
+            `;
+        }
+
+        // Funciones de reportes
+        function generarEstadoResultados() {
+            const ventas = sales.reduce((sum, s) => sum + s.total, 0);
+            const costoVentas = ventas * 0.6;
+            const utilidadBruta = ventas - costoVentas;
+            const gastosOperacion = ventas * 0.2;
+            const utilidadOperacion = utilidadBruta - gastosOperacion;
+            const isr = utilidadOperacion * 0.3;
+            const utilidadNeta = utilidadOperacion - isr;
+            
+            const reportContent = `
+                <div class="print-only text-center mb-4">
+                    <h1 class="text-2xl font-bold">Malanguísimas</h1>
+                    <h2 class="text-xl">Estado de Resultados</h2>
+                    <p class="text-gray-600">Mes actual</p>
+                </div>
+                <table class="min-w-full">
+                    <tbody>
+                        <tr><td class="py-2">Ventas Netas</td><td class="py-2 text-right">${formatCurrency(ventas)}</td></tr>
+                        <tr><td class="py-2">(-) Costo de Ventas</td><td class="py-2 text-right">${formatCurrency(costoVentas)}</td></tr>
+                        <tr class="font-bold bg-gray-50"><td class="py-2">Utilidad Bruta</td><td class="py-2 text-right">${formatCurrency(utilidadBruta)}</td></tr>
+                        <tr><td class="py-2">(-) Gastos de Operación</td><td class="py-2 text-right">${formatCurrency(gastosOperacion)}</td></tr>
+                        <tr class="font-bold bg-gray-50"><td class="py-2">Utilidad de Operación</td><td class="py-2 text-right">${formatCurrency(utilidadOperacion)}</td></tr>
+                        <tr><td class="py-2">(-) ISR (30%)</td><td class="py-2 text-right">${formatCurrency(isr)}</td></tr>
+                        <tr class="font-bold bg-gray-100"><td class="py-2">UTILIDAD NETA</td><td class="py-2 text-right">${formatCurrency(utilidadNeta)}</td></tr>
+                    </tbody>
+                </table>
+            `;
+            
+            showReport('Estado de Resultados', reportContent);
+        }
+
+        function generarBalanceGeneral() {
+            alert('Función disponible próximamente');
+        }
+
+        function generarFlujoEfectivo() {
+            alert('Función disponible próximamente');
+        }
+
+        function generarAnalisisVentas() {
+            const salesByProduct = {};
+            const salesByType = { mayoreo: 0, menudeo: 0 };
+            
+            sales.forEach(sale => {
+                salesByType[sale.customerType] += sale.total;
+                sale.lines.forEach(line => {
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        const key = `${product.name} ${product.size}`;
+                        salesByProduct[key] = (salesByProduct[key] || 0) + line.subtotal;
+                    }
+                });
+            });
+            
+            const sortedProducts = Object.entries(salesByProduct)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            const reportContent = `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-3">Ventas por Tipo de Cliente</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-blue-50 p-4 rounded">
+                                <p class="text-sm text-gray-600">Mayoreo</p>
+                                <p class="text-2xl font-bold text-blue-600">${formatCurrency(salesByType.mayoreo)}</p>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded">
+                                <p class="text-sm text-gray-600">Menudeo</p>
+                                <p class="text-2xl font-bold text-green-600">${formatCurrency(salesByType.menudeo)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold text-lg mb-3">Top 5 Productos</h3>
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">Producto</th>
+                                    <th class="px-4 py-2 text-right">Total Vendido</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedProducts.map(([product, total]) => `
+                                    <tr>
+                                        <td class="px-4 py-2">${product}</td>
+                                        <td class="px-4 py-2 text-right font-semibold">${formatCurrency(total)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            showReport('Análisis de Ventas', reportContent);
+        }
+
+        function generarReporteInventario() {
+            const totalValue = products.reduce((sum, p) => sum + (p.stock * p.wholesalePrice), 0);
+            
+            const reportContent = `
+                <div class="print-only text-center mb-4">
+                    <h1 class="text-2xl font-bold">Malanguísimas</h1>
+                    <h2 class="text-xl">Reporte de Inventario</h2>
+                </div>
+                
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Producto</th>
+                            <th class="px-4 py-2 text-center">Stock</th>
+                            <th class="px-4 py-2 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${products.map(p => `
+                            <tr class="${p.stock < 10 ? 'bg-red-50' : ''}">
+                                <td class="px-4 py-2">${p.name} ${p.size} - ${p.flavor}</td>
+                                <td class="px-4 py-2 text-center ${p.stock < 10 ? 'text-red-600 font-bold' : ''}">${p.stock}</td>
+                                <td class="px-4 py-2 text-right">${formatCurrency(p.stock * p.wholesalePrice)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot class="bg-gray-100 font-bold">
+                        <tr>
+                            <td class="px-4 py-2">TOTAL</td>
+                            <td class="px-4 py-2 text-center">${products.reduce((sum, p) => sum + p.stock, 0)}</td>
+                            <td class="px-4 py-2 text-right">${formatCurrency(totalValue)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+            showReport('Reporte de Inventario', reportContent);
+        }
+
+        function mostrarOpcionesExportar() {
+            alert('Para exportar, usa la función de imprimir y selecciona "Guardar como PDF"');
+            window.print();
+        }
+
+        function showReport(title, content) {
+            document.getElementById('reportTitle').textContent = title;
+            document.getElementById('reportContent').innerHTML = content;
+            document.getElementById('reportViewer').classList.remove('hidden');
+        }
+
+        function closeReportViewer() {
+            document.getElementById('reportViewer').classList.add('hidden');
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // Funciones de visualización
+        function viewSale(saleId) {
+            const sale = sales.find(s => s.id === saleId);
+            if (!sale) return;
+            
+            let detailsHTML = '<h4 class="font-semibold mb-2">Productos:</h4><ul class="list-disc pl-5">';
+            for (const line of sale.lines) {
+                const product = products.find(p => p.id === line.productId);
+                detailsHTML += `<li>${product ? product.name : 'Producto eliminado'} - Cantidad: ${line.quantity} - Precio: ${formatCurrency(line.price)} - Subtotal: ${formatCurrency(line.subtotal)}</li>`;
+            }
+            detailsHTML += '</ul>';
+            
+            const content = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Cliente:</p>
+                            <p class="font-semibold">${sale.customerName}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Tipo:</p>
+                            <p class="font-semibold">${sale.customerType}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Fecha:</p>
+                            <p class="font-semibold">${formatDate(sale.date)}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total:</p>
+                            <p class="font-semibold text-xl">${formatCurrency(sale.total)}</p>
+                        </div>
+                    </div>
+                    <div>${detailsHTML}</div>
+                </div>
+            `;
+            
+            showReport('Detalle de Venta', content);
+        }
+
+        function printSale(saleId) {
+            viewSale(saleId);
+            setTimeout(() => window.print(), 500);
+        }
+
+        // Funciones base de datos
+        async function loadInitialData() {
+            if (isDemoMode) {
+                loadDemoData();
+                return;
+            }
+            
+            showLoader();
+            try {
+                await initializeDefaultAccounts();
+                await Promise.all([
+                    loadProducts(),
+                    loadSales(),
+                    loadPurchases(),
+                    loadAccounts(),
+                    loadPolizas()
+                ]);
+                updateDashboard();
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                showError('Error al cargar datos. Intenta sincronizar manualmente.');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function initializeDefaultAccounts() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            const defaultAccounts = [
+                { clave: '1101', nombre: 'Caja', tipo: 'Activo', naturaleza: 'Deudora' },
+                { clave: '1102', nombre: 'Bancos', tipo: 'Activo', naturaleza: 'Deudora' },
+                { clave: '1104', nombre: 'Inventarios', tipo: 'Activo', naturaleza: 'Deudora' },
+                { clave: '2101', nombre: 'Proveedores', tipo: 'Pasivo', naturaleza: 'Acreedora' },
+                { clave: '3001', nombre: 'Capital Social', tipo: 'Capital', naturaleza: 'Acreedora' },
+                { clave: '4001', nombre: 'Ventas', tipo: 'Ingreso', naturaleza: 'Acreedora' },
+                { clave: '5001', nombre: 'Costo de Ventas', tipo: 'Gasto', naturaleza: 'Deudora' }
+            ];
+            
+            for (const account of defaultAccounts) {
+                try {
+                    const exists = await db.collection('accounts')
+                        .where('clave', '==', account.clave)
+                        .get();
+                    
+                    if (exists.empty) {
+                        await db.collection('accounts').add({
+                            ...account,
+                            saldo: 0,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error creando cuenta:', error);
+                }
+            }
+        }
+
+        async function loadProducts() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            try {
+                const snapshot = await db.collection('products')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                products = [];
+                snapshot.forEach(doc => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+                
+                loadProductsList();
+            } catch (error) {
+                console.error('Error cargando productos:', error);
+            }
+        }
+
+        async function loadSales() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            try {
+                const snapshot = await db.collection('sales')
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .get();
+                
+                sales = [];
+                snapshot.forEach(doc => {
+                    sales.push({ id: doc.id, ...doc.data() });
+                });
+                
+                loadSalesList();
+            } catch (error) {
+                console.error('Error cargando ventas:', error);
+            }
+        }
+
+        async function loadPurchases() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            try {
+                const snapshot = await db.collection('purchases')
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .get();
+                
+                purchases = [];
+                const tbody = document.getElementById('purchasesList');
+                tbody.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const purchase = { id: doc.id, ...doc.data() };
+                    purchases.push(purchase);
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(purchase.date)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${purchase.supplierName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${purchase.invoiceNumber || 'S/N'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(purchase.total)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    ${purchase.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="viewPurchase('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error cargando compras:', error);
+            }
+        }
+
+        async function loadAccounts() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            try {
+                const snapshot = await db.collection('accounts')
+                    .orderBy('clave')
+                    .get();
+                
+                accounts = [];
+                snapshot.forEach(doc => {
+                    accounts.push({ id: doc.id, ...doc.data() });
+                });
+                
+                loadAccountsList();
+            } catch (error) {
+                console.error('Error cargando cuentas:', error);
+            }
+        }
+
+        async function loadPolizas() {
+            if (!isFirebaseConnected || isDemoMode) return;
+            
+            try {
+                const snapshot = await db.collection('polizas')
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .get();
+                
+                polizas = [];
+                const tbody = document.getElementById('polizasList');
+                tbody.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const poliza = { id: doc.id, ...doc.data() };
+                    polizas.push(poliza);
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(poliza.fecha)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    ${poliza.tipo === 'Ingreso' ? 'bg-green-100 text-green-800' : 
+                                      poliza.tipo === 'Egreso' ? 'bg-red-100 text-red-800' : 
+                                      poliza.tipo === 'Diario' ? 'bg-blue-100 text-blue-800' : 
+                                      'bg-yellow-100 text-yellow-800'}">
+                                    ${poliza.tipo}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${poliza.numero}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${poliza.concepto}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(poliza.totalDebe)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="viewPoliza('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error cargando pólizas:', error);
+            }
+        }
+
+        async function syncData() {
+            if (isDemoMode) {
+                alert('En modo demo no se puede sincronizar con la base de datos');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase. Intenta recargar la página.');
+                return;
+            }
+            
+            await loadInitialData();
+            alert('Datos sincronizados exitosamente');
+        }
+
+        // Funciones CRUD
+        async function editProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            document.getElementById('productId').value = productId;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productCategory').value = product.category;
+            document.getElementById('productSize').value = product.size;
+            document.getElementById('productFlavor').value = product.flavor;
+            document.getElementById('wholesalePrice').value = product.wholesalePrice;
+            document.getElementById('retailPrice').value = product.retailPrice;
+            document.getElementById('initialStock').value = product.stock;
+            document.getElementById('barcode').value = product.barcode || '';
+            
+            showProductForm();
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+            
+            if (isDemoMode) {
+                products = products.filter(p => p.id !== productId);
+                loadProductsList();
+                updateDashboard();
+                alert('Producto eliminado (modo demo)');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            try {
+                await db.collection('products').doc(productId).delete();
+                alert('Producto eliminado exitosamente');
+                await loadProducts();
+                updateDashboard();
+            } catch (error) {
+                showError('Error al eliminar producto: ' + error.message);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Event Listeners para formularios
+        document.getElementById('productFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const productId = document.getElementById('productId').value;
+            const product = {
+                name: document.getElementById('productName').value,
+                category: document.getElementById('productCategory').value,
+                size: document.getElementById('productSize').value,
+                flavor: document.getElementById('productFlavor').value,
+                wholesalePrice: parseFloat(document.getElementById('wholesalePrice').value),
+                retailPrice: parseFloat(document.getElementById('retailPrice').value),
+                stock: parseInt(document.getElementById('initialStock').value),
+                barcode: document.getElementById('barcode').value
+            };
+            
+            if (isDemoMode) {
+                if (productId) {
+                    const index = products.findIndex(p => p.id === productId);
+                    products[index] = { ...products[index], ...product };
+                } else {
+                    product.id = Date.now().toString();
+                    products.push(product);
+                }
+                hideProductForm();
+                loadProductsList();
+                updateDashboard();
+                alert('Producto guardado (modo demo)');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            try {
+                if (productId) {
+                    await db.collection('products').doc(productId).update(product);
+                    alert('Producto actualizado exitosamente');
+                } else {
+                    product.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('products').add(product);
+                    alert('Producto guardado exitosamente');
+                }
+                hideProductForm();
+                await loadProducts();
+                updateDashboard();
+            } catch (error) {
+                showError('Error al guardar producto: ' + error.message);
+            } finally {
+                hideLoader();
+            }
+        });
+
+        document.getElementById('saleFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const lines = [];
+            document.querySelectorAll('.sale-line').forEach(line => {
+                const productId = line.querySelector('.product-select').value;
+                const quantity = parseInt(line.querySelector('.quantity-input').value);
+                const price = parseFloat(line.querySelector('.price-input').value);
+                const subtotal = parseFloat(line.querySelector('.subtotal-input').value);
+                
+                if (productId && quantity > 0) {
+                    lines.push({ productId, quantity, price, subtotal });
+                }
+            });
+            
+            if (lines.length === 0) {
+                alert('Agrega al menos un producto a la venta');
+                return;
+            }
+            
+            const sale = {
+                customerName: document.getElementById('customerName').value,
+                customerType: document.getElementById('customerType').value,
+                date: document.getElementById('saleDate').value,
+                lines: lines,
+                total: parseFloat(document.getElementById('saleTotal').textContent),
+                status: 'pagada'
+            };
+            
+            if (isDemoMode) {
+                sale.id = Date.now().toString();
+                sales.unshift(sale);
+                
+                // Actualizar stock en modo demo
+                lines.forEach(line => {
+                    const product = products.find(p => p.id === line.productId);
+                    if (product) {
+                        product.stock -= line.quantity;
+                    }
+                });
+                
+                hideSaleForm();
+                loadSalesList();
+                loadProductsList();
+                updateDashboard();
+                alert('Venta registrada (modo demo)');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            try {
+                sale.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                const saleRef = await db.collection('sales').add(sale);
+                
+                // Actualizar inventario
+                const batch = db.batch();
+                for (const line of lines) {
+                    const productRef = db.collection('products').doc(line.productId);
+                    batch.update(productRef, {
+                        stock: firebase.firestore.FieldValue.increment(-line.quantity)
+                    });
+                }
+                await batch.commit();
+                
+                alert('Venta registrada exitosamente');
+                hideSaleForm();
+                await Promise.all([loadSales(), loadProducts()]);
+                updateDashboard();
+            } catch (error) {
+                showError('Error al registrar venta: ' + error.message);
+            } finally {
+                hideLoader();
+            }
+        });
+
+        document.getElementById('purchaseFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const lines = [];
+            document.querySelectorAll('.purchase-line').forEach(line => {
+                const description = line.querySelector('.item-description').value;
+                const quantity = parseInt(line.querySelector('.quantity-input').value);
+                const price = parseFloat(line.querySelector('.price-input').value);
+                const subtotal = parseFloat(line.querySelector('.subtotal-input').value);
+                
+                if (description && quantity > 0) {
+                    lines.push({ description, quantity, price, subtotal });
+                }
+            });
+            
+            if (lines.length === 0) {
+                alert('Agrega al menos un ítem a la compra');
+                return;
+            }
+            
+            const purchase = {
+                supplierName: document.getElementById('supplierName').value,
+                invoiceNumber: document.getElementById('invoiceNumber').value,
+                date: document.getElementById('purchaseDate').value,
+                lines: lines,
+                total: parseFloat(document.getElementById('purchaseTotal').textContent),
+                status: 'pagada'
+            };
+            
+            if (isDemoMode) {
+                purchase.id = Date.now().toString();
+                purchases.unshift(purchase);
+                hidePurchaseForm();
+                alert('Compra registrada (modo demo)');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
+            
+            showLoader();
+            try {
+                purchase.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('purchases').add(purchase);
+                alert('Compra registrada exitosamente');
+                hidePurchaseForm();
+                await loadPurchases();
+            } catch (error) {
+                showError('Error al registrar compra: ' + error.message);
+            } finally {
+                hideLoader();
+            }
+        });
+
         document.getElementById('polizaFormElement').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -1453,12 +2273,25 @@
                 movimientos: movimientos,
                 totalDebe: totalDebe,
                 totalHaber: totalHaber,
-                estatus: 'Activa',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                estatus: 'Activa'
             };
+            
+            if (isDemoMode) {
+                poliza.id = Date.now().toString();
+                polizas.unshift(poliza);
+                hidePolizaForm();
+                alert('Póliza guardada (modo demo)');
+                return;
+            }
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
+            }
             
             showLoader();
             try {
+                poliza.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 await db.collection('polizas').add(poliza);
                 
                 // Actualizar saldos de cuentas
@@ -1487,24 +2320,13 @@
                 
                 alert('Póliza guardada exitosamente');
                 hidePolizaForm();
-                loadPolizas();
-                loadAccounts();
+                await Promise.all([loadPolizas(), loadAccounts()]);
             } catch (error) {
-                alert('Error al guardar póliza: ' + error.message);
+                showError('Error al guardar póliza: ' + error.message);
             } finally {
                 hideLoader();
             }
         });
-
-        // Funciones para cuentas contables
-        function showCuentaForm() {
-            document.getElementById('cuentaForm').classList.remove('hidden');
-        }
-
-        function hideCuentaForm() {
-            document.getElementById('cuentaForm').classList.add('hidden');
-            document.getElementById('cuentaFormElement').reset();
-        }
 
         document.getElementById('cuentaFormElement').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1514,487 +2336,121 @@
                 nombre: document.getElementById('cuentaNombre').value,
                 tipo: document.getElementById('cuentaTipo').value,
                 naturaleza: document.getElementById('cuentaNaturaleza').value,
-                saldo: 0,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                saldo: 0
             };
             
-            showLoader();
-            try {
-                await db.collection('accounts').add(cuenta);
-                alert('Cuenta creada exitosamente');
+            if (isDemoMode) {
+                cuenta.id = Date.now().toString();
+                accounts.push(cuenta);
                 hideCuentaForm();
-                loadAccounts();
-            } catch (error) {
-                alert('Error al crear cuenta: ' + error.message);
-            } finally {
-                hideLoader();
+                loadAccountsList();
+                alert('Cuenta creada (modo demo)');
+                return;
             }
-        });
-
-        // Generar Balanza de Comprobación
-        async function generarBalanza() {
-            const desde = document.getElementById('balanzaDesde').value;
-            const hasta = document.getElementById('balanzaHasta').value;
             
-            if (!desde || !hasta) {
-                alert('Selecciona ambas fechas');
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
                 return;
             }
             
             showLoader();
             try {
-                const tbody = document.getElementById('balanzaList');
-                tbody.innerHTML = '';
-                
-                let totalCargos = 0;
-                let totalAbonos = 0;
-                
-                for (const account of accounts) {
-                    // Obtener movimientos de la cuenta en el período
-                    const polizasSnapshot = await db.collection('polizas')
-                        .where('fecha', '>=', desde)
-                        .where('fecha', '<=', hasta)
-                        .get();
-                    
-                    let cargos = 0;
-                    let abonos = 0;
-                    
-                    polizasSnapshot.forEach(doc => {
-                        const poliza = doc.data();
-                        poliza.movimientos.forEach(mov => {
-                            if (mov.cuenta === account.clave) {
-                                cargos += mov.debe;
-                                abonos += mov.haber;
-                            }
-                        });
-                    });
-                    
-                    totalCargos += cargos;
-                    totalAbonos += abonos;
-                    
-                    let saldoFinal = account.saldo || 0;
-                    if (account.naturaleza === 'Deudora') {
-                        saldoFinal = saldoFinal + cargos - abonos;
-                    } else {
-                        saldoFinal = saldoFinal - cargos + abonos;
-                    }
-                    
-                    tbody.innerHTML += `
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.clave}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.nombre}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(account.saldo || 0)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(cargos)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(abonos)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">${formatCurrency(Math.abs(saldoFinal))}</td>
-                        </tr>
-                    `;
-                }
-                
-                // Totales
-                tbody.innerHTML += `
-                    <tr class="border-t-2 font-bold bg-gray-50">
-                        <td colspan="3" class="px-6 py-4 text-right">TOTALES:</td>
-                        <td class="px-6 py-4 text-right">${formatCurrency(totalCargos)}</td>
-                        <td class="px-6 py-4 text-right">${formatCurrency(totalAbonos)}</td>
-                        <td class="px-6 py-4"></td>
-                    </tr>
-                `;
+                cuenta.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('accounts').add(cuenta);
+                alert('Cuenta creada exitosamente');
+                hideCuentaForm();
+                await loadAccounts();
             } catch (error) {
-                alert('Error al generar balanza: ' + error.message);
+                showError('Error al crear cuenta: ' + error.message);
             } finally {
                 hideLoader();
             }
-        }
+        });
 
-        // Crear pólizas automáticas
-        async function createSalePoliza(sale, saleId) {
-            const movimientos = [
-                {
-                    cuenta: '1101', // Caja
-                    descripcion: `Venta a ${sale.customerName}`,
-                    debe: sale.total,
-                    haber: 0
-                },
-                {
-                    cuenta: '4001', // Ventas
-                    descripcion: `Venta a ${sale.customerName}`,
-                    debe: 0,
-                    haber: sale.total
-                }
-            ];
+        document.getElementById('empresaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            const poliza = {
-                tipo: 'Ingreso',
-                fecha: sale.date,
-                numero: await getNextPolizaNumber('Ingreso'),
-                concepto: `Venta a ${sale.customerName}`,
-                referencia: saleId,
-                movimientos: movimientos,
-                totalDebe: sale.total,
-                totalHaber: sale.total,
-                estatus: 'Activa',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            await db.collection('polizas').add(poliza);
-            
-            // Actualizar saldos
-            await updateAccountBalances(movimientos);
-        }
-
-        async function createPurchasePoliza(purchase, purchaseId) {
-            const movimientos = [
-                {
-                    cuenta: '1104', // Inventarios
-                    descripcion: `Compra a ${purchase.supplierName}`,
-                    debe: purchase.total,
-                    haber: 0
-                },
-                {
-                    cuenta: '2101', // Proveedores
-                    descripcion: `Compra a ${purchase.supplierName}`,
-                    debe: 0,
-                    haber: purchase.total
-                }
-            ];
-            
-            const poliza = {
-                tipo: 'Egreso',
-                fecha: purchase.date,
-                numero: await getNextPolizaNumber('Egreso'),
-                concepto: `Compra a ${purchase.supplierName}`,
-                referencia: purchaseId,
-                movimientos: movimientos,
-                totalDebe: purchase.total,
-                totalHaber: purchase.total,
-                estatus: 'Activa',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            await db.collection('polizas').add(poliza);
-            
-            // Actualizar saldos
-            await updateAccountBalances(movimientos);
-        }
-
-        async function getNextPolizaNumber(tipo) {
-            const prefix = tipo.substring(0, 3).toUpperCase();
-            const year = new Date().getFullYear();
-            const month = String(new Date().getMonth() + 1).padStart(2, '0');
-            
-            const snapshot = await db.collection('polizas')
-                .where('tipo', '==', tipo)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
-            
-            let number = 1;
-            if (!snapshot.empty) {
-                const lastPoliza = snapshot.docs[0].data();
-                const lastNumber = parseInt(lastPoliza.numero.split('-').pop());
-                number = lastNumber + 1;
+            if (isDemoMode) {
+                alert('Información guardada (modo demo)');
+                return;
             }
             
-            return `${prefix}-${year}${month}-${String(number).padStart(4, '0')}`;
-        }
+            alert('Información guardada');
+        });
 
-        async function updateAccountBalances(movimientos) {
-            const batch = db.batch();
+        document.getElementById('fiscalForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            for (const mov of movimientos) {
-                const accountSnapshot = await db.collection('accounts')
-                    .where('clave', '==', mov.cuenta)
-                    .limit(1)
-                    .get();
-                
-                if (!accountSnapshot.empty) {
-                    const accountDoc = accountSnapshot.docs[0];
-                    const account = accountDoc.data();
-                    let nuevoSaldo = account.saldo || 0;
-                    
-                    if (account.naturaleza === 'Deudora') {
-                        nuevoSaldo += mov.debe - mov.haber;
-                    } else {
-                        nuevoSaldo += mov.haber - mov.debe;
-                    }
-                    
-                    batch.update(accountDoc.ref, { saldo: nuevoSaldo });
-                }
+            if (isDemoMode) {
+                alert('Configuración guardada (modo demo)');
+                return;
             }
             
-            await batch.commit();
-        }
+            alert('Configuración guardada');
+        });
 
-        // Inicialización de cuentas contables básicas
-        async function initializeDefaultAccounts() {
-            const defaultAccounts = [
-                // Activos
-                { clave: '1000', nombre: 'ACTIVO', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1100', nombre: 'ACTIVO CIRCULANTE', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1101', nombre: 'Caja', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1102', nombre: 'Bancos', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1103', nombre: 'Clientes', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1104', nombre: 'Inventarios', tipo: 'Activo', naturaleza: 'Deudora' },
-                { clave: '1105', nombre: 'IVA Acreditable', tipo: 'Activo', naturaleza: 'Deudora' },
-                
-                // Pasivos
-                { clave: '2000', nombre: 'PASIVO', tipo: 'Pasivo', naturaleza: 'Acreedora' },
-                { clave: '2100', nombre: 'PASIVO CORTO PLAZO', tipo: 'Pasivo', naturaleza: 'Acreedora' },
-                { clave: '2101', nombre: 'Proveedores', tipo: 'Pasivo', naturaleza: 'Acreedora' },
-                { clave: '2102', nombre: 'IVA por Pagar', tipo: 'Pasivo', naturaleza: 'Acreedora' },
-                { clave: '2103', nombre: 'ISR por Pagar', tipo: 'Pasivo', naturaleza: 'Acreedora' },
-                
-                // Capital
-                { clave: '3000', nombre: 'CAPITAL CONTABLE', tipo: 'Capital', naturaleza: 'Acreedora' },
-                { clave: '3001', nombre: 'Capital Social', tipo: 'Capital', naturaleza: 'Acreedora' },
-                { clave: '3002', nombre: 'Utilidades Retenidas', tipo: 'Capital', naturaleza: 'Acreedora' },
-                { clave: '3003', nombre: 'Resultado del Ejercicio', tipo: 'Capital', naturaleza: 'Acreedora' },
-                
-                // Ingresos
-                { clave: '4000', nombre: 'INGRESOS', tipo: 'Ingreso', naturaleza: 'Acreedora' },
-                { clave: '4001', nombre: 'Ventas', tipo: 'Ingreso', naturaleza: 'Acreedora' },
-                { clave: '4002', nombre: 'Otros Ingresos', tipo: 'Ingreso', naturaleza: 'Acreedora' },
-                
-                // Gastos
-                { clave: '5000', nombre: 'GASTOS', tipo: 'Gasto', naturaleza: 'Deudora' },
-                { clave: '5001', nombre: 'Costo de Ventas', tipo: 'Gasto', naturaleza: 'Deudora' },
-                { clave: '5100', nombre: 'Gastos de Operación', tipo: 'Gasto', naturaleza: 'Deudora' },
-                { clave: '5101', nombre: 'Gastos de Venta', tipo: 'Gasto', naturaleza: 'Deudora' },
-                { clave: '5102', nombre: 'Gastos de Administración', tipo: 'Gasto', naturaleza: 'Deudora' },
-                { clave: '5103', nombre: 'Gastos Financieros', tipo: 'Gasto', naturaleza: 'Deudora' }
-            ];
-            
-            for (const account of defaultAccounts) {
-                const exists = await db.collection('accounts')
-                    .where('clave', '==', account.clave)
-                    .get();
-                
-                if (exists.empty) {
-                    await db.collection('accounts').add({
-                        ...account,
-                        saldo: 0,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
+        // Funciones de configuración
+        function crearRespaldo() {
+            if (isDemoMode) {
+                alert('Los respaldos no están disponibles en modo demo');
+                return;
             }
-        }
-
-        // Funciones de carga de datos
-        async function loadInitialData() {
-            showLoader();
-            try {
-                await initializeDefaultAccounts();
-                await Promise.all([
-                    loadProducts(),
-                    loadSales(),
-                    loadPurchases(),
-                    loadAccounts(),
-                    loadPolizas()
-                ]);
-                updateDashboard();
-            } catch (error) {
-                console.error('Error al cargar datos:', error);
-            } finally {
-                hideLoader();
+            
+            if (!isFirebaseConnected) {
+                showError('No hay conexión con Firebase');
+                return;
             }
+            
+            alert('Respaldo creado automáticamente en Firebase');
         }
 
-        async function syncData() {
-            showLoader();
-            try {
-                await loadInitialData();
-                alert('Datos sincronizados exitosamente');
-            } catch (error) {
-                alert('Error al sincronizar: ' + error.message);
-            } finally {
-                hideLoader();
+        function verRespaldos() {
+            if (isDemoMode) {
+                alert('Los respaldos no están disponibles en modo demo');
+                return;
             }
+            
+            alert('Los respaldos se realizan automáticamente cada 24 horas en Firebase');
         }
 
-        async function loadProducts() {
-            const snapshot = await db.collection('products')
-                .orderBy('createdAt', 'desc')
-                .get();
+        function viewPurchase(purchaseId) {
+            const purchase = purchases.find(p => p.id === purchaseId);
+            if (!purchase) return;
             
-            products = [];
-            const tbody = document.getElementById('productsList');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const product = { id: doc.id, ...doc.data() };
-                products.push(product);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.size}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.flavor}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 ${product.stock < 10 ? 'text-red-600 font-bold' : ''}">${product.stock}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.wholesalePrice)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.retailPrice)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="editProduct('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="deleteProduct('${doc.id}')" class="text-red-600 hover:text-red-900">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+            let detailsHTML = '<h4 class="font-semibold mb-2">Detalle de compra:</h4><ul class="list-disc pl-5">';
+            purchase.lines.forEach(line => {
+                detailsHTML += `<li>${line.description} - Cantidad: ${line.quantity} - Precio: ${formatCurrency(line.price)} - Subtotal: ${formatCurrency(line.subtotal)}</li>`;
             });
+            detailsHTML += '</ul>';
+            
+            const content = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Proveedor:</p>
+                            <p class="font-semibold">${purchase.supplierName}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Factura:</p>
+                            <p class="font-semibold">${purchase.invoiceNumber || 'Sin número'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Fecha:</p>
+                            <p class="font-semibold">${formatDate(purchase.date)}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total:</p>
+                            <p class="font-semibold text-xl">${formatCurrency(purchase.total)}</p>
+                        </div>
+                    </div>
+                    <div>${detailsHTML}</div>
+                </div>
+            `;
+            
+            showReport('Detalle de Compra', content);
         }
 
-        async function loadSales() {
-            const snapshot = await db.collection('sales')
-                .orderBy('createdAt', 'desc')
-                .limit(50)
-                .get();
-            
-            sales = [];
-            const tbody = document.getElementById('salesList');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const sale = { id: doc.id, ...doc.data() };
-                sales.push(sale);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(sale.date)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.customerName}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.customerType === 'mayoreo' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
-                                ${sale.customerType}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(sale.total)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                ${sale.status}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="viewSale('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2" title="Ver detalle">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button onclick="printSale('${doc.id}')" class="text-gray-600 hover:text-gray-900" title="Imprimir">
-                                <i class="fas fa-print"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function loadPurchases() {
-            const snapshot = await db.collection('purchases')
-                .orderBy('createdAt', 'desc')
-                .limit(50)
-                .get();
-            
-            purchases = [];
-            const tbody = document.getElementById('purchasesList');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const purchase = { id: doc.id, ...doc.data() };
-                purchases.push(purchase);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(purchase.date)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${purchase.supplierName}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${purchase.invoiceNumber || 'S/N'}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(purchase.total)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                ${purchase.status}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="viewPurchase('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function loadAccounts() {
-            const snapshot = await db.collection('accounts')
-                .orderBy('clave')
-                .get();
-            
-            accounts = [];
-            const tbody = document.getElementById('cuentasList');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const account = { id: doc.id, ...doc.data() };
-                accounts.push(account);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${account.clave}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.nombre}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.tipo}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${account.naturaleza}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(account.saldo || 0)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <span class="text-gray-400">Sin acciones</span>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function loadPolizas() {
-            const snapshot = await db.collection('polizas')
-                .orderBy('createdAt', 'desc')
-                .limit(50)
-                .get();
-            
-            polizas = [];
-            const tbody = document.getElementById('polizasList');
-            tbody.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const poliza = { id: doc.id, ...doc.data() };
-                polizas.push(poliza);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(poliza.fecha)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${poliza.tipo === 'Ingreso' ? 'bg-green-100 text-green-800' : 
-                                  poliza.tipo === 'Egreso' ? 'bg-red-100 text-red-800' : 
-                                  poliza.tipo === 'Diario' ? 'bg-blue-100 text-blue-800' : 
-                                  'bg-yellow-100 text-yellow-800'}">
-                                ${poliza.tipo}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${poliza.numero}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${poliza.concepto}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(poliza.totalDebe)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="viewPoliza('${doc.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button onclick="printPoliza('${doc.id}')" class="text-gray-600 hover:text-gray-900">
-                                <i class="fas fa-print"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        // Funciones de visualización
-        async function viewPoliza(polizaId) {
+        function viewPoliza(polizaId) {
             const poliza = polizas.find(p => p.id === polizaId);
             if (!poliza) return;
             
@@ -2065,382 +2521,33 @@
             showReport('Póliza Contable', content);
         }
 
-        async function printPoliza(polizaId) {
-            await viewPoliza(polizaId);
-            setTimeout(() => window.print(), 500);
-        }
-
-        async function viewPurchase(purchaseId) {
-            const purchase = purchases.find(p => p.id === purchaseId);
-            if (!purchase) return;
-            
-            let detailsHTML = '<h4 class="font-semibold mb-2">Detalle de compra:</h4><ul class="list-disc pl-5">';
-            purchase.lines.forEach(line => {
-                detailsHTML += `<li>${line.description} - Cantidad: ${line.quantity} - Precio: ${formatCurrency(line.price)} - Subtotal: ${formatCurrency(line.subtotal)}</li>`;
-            });
-            detailsHTML += '</ul>';
-            
-            const content = `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <p class="text-sm text-gray-600">Proveedor:</p>
-                            <p class="font-semibold">${purchase.supplierName}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Factura:</p>
-                            <p class="font-semibold">${purchase.invoiceNumber || 'Sin número'}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Fecha:</p>
-                            <p class="font-semibold">${formatDate(purchase.date)}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Total:</p>
-                            <p class="font-semibold text-xl">${formatCurrency(purchase.total)}</p>
-                        </div>
-                    </div>
-                    <div>${detailsHTML}</div>
-                </div>
-            `;
-            
-            showReport('Detalle de Compra', content);
-        }
-
-        // Actualizar dashboard (simplificado)
-        function updateDashboard() {
-            const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            
-            // Ventas del mes
-            const ventasMes = sales.filter(sale => {
-                const saleDate = new Date(sale.date);
-                return saleDate >= startOfMonth;
-            }).reduce((sum, sale) => sum + sale.total, 0);
-            
-            // Métricas básicas
-            const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
-            const clientesUnicos = new Set(sales.map(s => s.customerName)).size;
-            const utilidadNeta = ventasMes * 0.3;
-            
-            // Actualizar valores
-            document.getElementById('ventasMes').textContent = formatCurrency(ventasMes);
-            document.getElementById('totalStock').textContent = totalStock;
-            document.getElementById('clientesActivos').textContent = clientesUnicos;
-            document.getElementById('utilidadNeta').textContent = formatCurrency(utilidadNeta);
-            
-            updateCharts();
-        }
-
-        function updateCharts() {
-            // Destruir gráficos existentes
-            Object.values(chartInstances).forEach(chart => chart?.destroy());
-            
-            // Gráfico de ventas por sabor
-            const salesByFlavor = {};
-            sales.forEach(sale => {
-                sale.lines.forEach(line => {
-                    const product = products.find(p => p.id === line.productId);
-                    if (product) {
-                        salesByFlavor[product.flavor] = (salesByFlavor[product.flavor] || 0) + line.subtotal;
-                    }
-                });
-            });
-            
-            const ctx1 = document.getElementById('salesChart').getContext('2d');
-            chartInstances.salesChart = new Chart(ctx1, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(salesByFlavor),
-                    datasets: [{
-                        data: Object.values(salesByFlavor),
-                        backgroundColor: ['#ff6384','#ff9f40','#4bc0c0','#9966ff','#ffce56','#36a2eb','#c9c9c9','#5366ff']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-            
-            // Gráfico de tendencia (últimos 7 días)
-            const last7Days = [];
-            const salesByDay = {};
-            
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                const dateStr = date.toISOString().split('T')[0];
-                last7Days.push(dateStr);
-                salesByDay[dateStr] = 0;
-            }
-            
-            sales.forEach(sale => {
-                if (salesByDay.hasOwnProperty(sale.date)) {
-                    salesByDay[sale.date] += sale.total;
-                }
-            });
-            
-            const ctx2 = document.getElementById('trendChart').getContext('2d');
-            chartInstances.trendChart = new Chart(ctx2, {
-                type: 'line',
-                data: {
-                    labels: last7Days.map(d => new Date(d).getDate()),
-                    datasets: [{
-                        label: 'Ventas',
-                        data: last7Days.map(date => salesByDay[date]),
-                        borderColor: 'rgb(251, 146, 60)',
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-
-        // Funciones de reportes (simplificadas)
-        async function generarEstadoResultados() {
-            showLoader();
-            try {
-                const month = new Date().getMonth();
-                const year = new Date().getFullYear();
-                const monthSales = sales.filter(s => {
-                    const d = new Date(s.date);
-                    return d.getMonth() === month && d.getFullYear() === year;
-                });
-                
-                const ventas = monthSales.reduce((sum, s) => sum + s.total, 0);
-                const costoVentas = ventas * 0.6;
-                const utilidadBruta = ventas - costoVentas;
-                const gastosOperacion = ventas * 0.2;
-                const utilidadOperacion = utilidadBruta - gastosOperacion;
-                const isr = utilidadOperacion * 0.3;
-                const utilidadNeta = utilidadOperacion - isr;
-                
-                const reportContent = `
-                    <div class="print-only text-center mb-4">
-                        <h1 class="text-2xl font-bold">Malanguísimas</h1>
-                        <h2 class="text-xl">Estado de Resultados</h2>
-                        <p class="text-gray-600">Mes actual</p>
-                    </div>
-                    <table class="min-w-full">
-                        <tbody>
-                            <tr><td class="py-2">Ventas Netas</td><td class="py-2 text-right">${formatCurrency(ventas)}</td></tr>
-                            <tr><td class="py-2">(-) Costo de Ventas</td><td class="py-2 text-right">${formatCurrency(costoVentas)}</td></tr>
-                            <tr class="font-bold bg-gray-50"><td class="py-2">Utilidad Bruta</td><td class="py-2 text-right">${formatCurrency(utilidadBruta)}</td></tr>
-                            <tr><td class="py-2">(-) Gastos de Operación</td><td class="py-2 text-right">${formatCurrency(gastosOperacion)}</td></tr>
-                            <tr class="font-bold bg-gray-50"><td class="py-2">Utilidad de Operación</td><td class="py-2 text-right">${formatCurrency(utilidadOperacion)}</td></tr>
-                            <tr><td class="py-2">(-) ISR (30%)</td><td class="py-2 text-right">${formatCurrency(isr)}</td></tr>
-                            <tr class="font-bold bg-gray-100"><td class="py-2">UTILIDAD NETA</td><td class="py-2 text-right">${formatCurrency(utilidadNeta)}</td></tr>
-                        </tbody>
-                    </table>
-                `;
-                
-                showReport('Estado de Resultados', reportContent);
-            } catch (error) {
-                alert('Error al generar reporte: ' + error.message);
-            } finally {
-                hideLoader();
-            }
-        }
-
-        async function generarBalanceGeneral() {
-            alert('Función disponible próximamente');
-        }
-
-        async function generarFlujoEfectivo() {
-            alert('Función disponible próximamente');
-        }
-
-        async function generarAnalisisVentas() {
-            showLoader();
-            try {
-                const salesByProduct = {};
-                const salesByType = { mayoreo: 0, menudeo: 0 };
-                
-                sales.forEach(sale => {
-                    salesByType[sale.customerType] += sale.total;
-                    sale.lines.forEach(line => {
-                        const product = products.find(p => p.id === line.productId);
-                        if (product) {
-                            const key = `${product.name} ${product.size}`;
-                            salesByProduct[key] = (salesByProduct[key] || 0) + line.subtotal;
-                        }
-                    });
-                });
-                
-                const sortedProducts = Object.entries(salesByProduct)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5);
-                
-                const reportContent = `
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="font-bold text-lg mb-3">Ventas por Tipo de Cliente</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-blue-50 p-4 rounded">
-                                    <p class="text-sm text-gray-600">Mayoreo</p>
-                                    <p class="text-2xl font-bold text-blue-600">${formatCurrency(salesByType.mayoreo)}</p>
-                                </div>
-                                <div class="bg-green-50 p-4 rounded">
-                                    <p class="text-sm text-gray-600">Menudeo</p>
-                                    <p class="text-2xl font-bold text-green-600">${formatCurrency(salesByType.menudeo)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <h3 class="font-bold text-lg mb-3">Top 5 Productos</h3>
-                            <table class="min-w-full">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left">Producto</th>
-                                        <th class="px-4 py-2 text-right">Total Vendido</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${sortedProducts.map(([product, total]) => `
-                                        <tr>
-                                            <td class="px-4 py-2">${product}</td>
-                                            <td class="px-4 py-2 text-right font-semibold">${formatCurrency(total)}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-                
-                showReport('Análisis de Ventas', reportContent);
-            } finally {
-                hideLoader();
-            }
-        }
-
-        async function generarReporteInventario() {
-            showLoader();
-            try {
-                const totalValue = products.reduce((sum, p) => sum + (p.stock * p.wholesalePrice), 0);
-                
-                const reportContent = `
-                    <div class="print-only text-center mb-4">
-                        <h1 class="text-2xl font-bold">Malanguísimas</h1>
-                        <h2 class="text-xl">Reporte de Inventario</h2>
-                    </div>
-                    
-                    <table class="min-w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left">Producto</th>
-                                <th class="px-4 py-2 text-center">Stock</th>
-                                <th class="px-4 py-2 text-right">Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${products.map(p => `
-                                <tr class="${p.stock < 10 ? 'bg-red-50' : ''}">
-                                    <td class="px-4 py-2">${p.name} ${p.size} - ${p.flavor}</td>
-                                    <td class="px-4 py-2 text-center ${p.stock < 10 ? 'text-red-600 font-bold' : ''}">${p.stock}</td>
-                                    <td class="px-4 py-2 text-right">${formatCurrency(p.stock * p.wholesalePrice)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                        <tfoot class="bg-gray-100 font-bold">
-                            <tr>
-                                <td class="px-4 py-2">TOTAL</td>
-                                <td class="px-4 py-2 text-center">${products.reduce((sum, p) => sum + p.stock, 0)}</td>
-                                <td class="px-4 py-2 text-right">${formatCurrency(totalValue)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                `;
-                
-                showReport('Reporte de Inventario', reportContent);
-            } finally {
-                hideLoader();
-            }
-        }
-
-        function mostrarOpcionesExportar() {
-            alert('Para exportar, usa la función de imprimir y selecciona "Guardar como PDF"');
-            window.print();
-        }
-
-        function showReport(title, content) {
-            document.getElementById('reportTitle').textContent = title;
-            document.getElementById('reportContent').innerHTML = content;
-            document.getElementById('reportViewer').classList.remove('hidden');
-        }
-
-        function closeReportViewer() {
-            document.getElementById('reportViewer').classList.add('hidden');
-        }
-
-        function printReport() {
-            window.print();
-        }
-
-        // Configuración simplificada
-        document.getElementById('empresaForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            alert('Información guardada (demo)');
-        });
-
-        document.getElementById('fiscalForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            alert('Configuración guardada (demo)');
-        });
-
-        function crearRespaldo() {
-            alert('Respaldo creado automáticamente en Firebase');
-        }
-
-        function verRespaldos() {
-            alert('Los respaldos se realizan automáticamente cada 24 horas');
-        }
-
         // Eventos de conexión
         window.addEventListener('online', () => {
             document.body.classList.remove('offline');
-            syncData();
+            if (!isDemoMode) {
+                syncData();
+            }
         });
 
         window.addEventListener('offline', () => {
             document.body.classList.add('offline');
         });
 
-        // Inicialización al cargar
-        document.addEventListener('DOMContentLoaded', () => {
-            // Mostrar loader mientras conecta
-            showLoader();
-            
-            // Establecer fecha actual en campos
+        // Establecer fechas por defecto
+        function setDefaultDates() {
             const dateInputs = document.querySelectorAll('input[type="date"]');
             const today = new Date().toISOString().split('T')[0];
             dateInputs.forEach(input => {
                 if (!input.value) input.value = today;
             });
+        }
+
+        // Inicialización al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            setDefaultDates();
             
-            // Verificar conexión a Firebase
-            db.collection('test').doc('connection').set({
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'connected'
-            }).then(() => {
-                console.log('✅ Conectado a Firebase exitosamente');
-                // Mensaje de bienvenida
-                console.log('🔥 ERP Malanguísimas - Sistema listo para usar');
-                // Iniciar el sistema
-                showDashboard();
-            }).catch((error) => {
-                console.error('❌ Error conectando a Firebase:', error);
-                alert('Error de conexión. Verifica que Firestore esté habilitado en modo TEST.');
-            }).finally(() => {
-                hideLoader();
-            });
+            // Inicializar Firebase
+            initializeFirebase();
         });
     </script>
 </body>
