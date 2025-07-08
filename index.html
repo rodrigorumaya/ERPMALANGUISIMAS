@@ -1,2009 +1,1926 @@
-import React, { useState, useEffect } from 'react';
-import { Calculator, Users, FileText, DollarSign, Building, BarChart3, Plus, Search, Calendar, Download, Eye, Edit, Trash2, X, Check, AlertCircle, CreditCard, Package, UserPlus, Phone, Mail, MapPin, Clock, TrendingUp, Filter, ChevronDown, ChevronRight } from 'lucide-react';
-
-const App = () => {
-  const [activeModule, setActiveModule] = useState('dashboard');
-  const [polizas, setPolizas] = useState([]);
-  const [creditos, setCreditos] = useState([]);
-  const [consignas, setConsignas] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [ventas, setVentas] = useState([]);
-  const [cuentasContables, setCuentasContables] = useState([
-    { id: 1, codigo: '1000', nombre: 'ACTIVO', tipo: 'titulo', nivel: 1, naturaleza: 'deudora', saldo: 0 },
-    { id: 2, codigo: '1100', nombre: 'ACTIVO CIRCULANTE', tipo: 'titulo', nivel: 2, naturaleza: 'deudora', saldo: 0 },
-    { id: 3, codigo: '1101', nombre: 'Caja', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 15000 },
-    { id: 4, codigo: '1102', nombre: 'Bancos', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 85000 },
-    { id: 5, codigo: '1103', nombre: 'Clientes', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 45000 },
-    { id: 6, codigo: '1104', nombre: 'Inventarios', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 120000 },
-    { id: 7, codigo: '2000', nombre: 'PASIVO', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
-    { id: 8, codigo: '2100', nombre: 'PASIVO CIRCULANTE', tipo: 'titulo', nivel: 2, naturaleza: 'acreedora', saldo: 0 },
-    { id: 9, codigo: '2101', nombre: 'Proveedores', tipo: 'detalle', nivel: 3, naturaleza: 'acreedora', saldo: 35000 },
-    { id: 10, codigo: '3000', nombre: 'CAPITAL', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
-    { id: 11, codigo: '3100', nombre: 'Capital Social', tipo: 'detalle', nivel: 2, naturaleza: 'acreedora', saldo: 200000 },
-    { id: 12, codigo: '4000', nombre: 'INGRESOS', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
-    { id: 13, codigo: '4100', nombre: 'Ventas', tipo: 'detalle', nivel: 2, naturaleza: 'acreedora', saldo: 0 },
-    { id: 14, codigo: '5000', nombre: 'GASTOS', tipo: 'titulo', nivel: 1, naturaleza: 'deudora', saldo: 0 },
-    { id: 15, codigo: '5100', nombre: 'Costo de Ventas', tipo: 'detalle', nivel: 2, naturaleza: 'deudora', saldo: 0 }
-  ]);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('');
-  const [editingItem, setEditingItem] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Estado para formularios
-  const [formData, setFormData] = useState({
-    // Póliza
-    fecha: new Date().toISOString().split('T')[0],
-    tipo: 'diario',
-    concepto: '',
-    movimientos: [],
-    
-    // Crédito
-    cliente: '',
-    monto: '',
-    plazo: '',
-    tasaInteres: '',
-    fechaInicio: new Date().toISOString().split('T')[0],
-    estado: 'activo',
-    
-    // Consigna
-    producto: '',
-    cantidad: '',
-    fechaConsigna: new Date().toISOString().split('T')[0],
-    fechaLimite: '',
-    precioVenta: '',
-    
-    // Cliente CRM
-    nombre: '',
-    rfc: '',
-    telefono: '',
-    email: '',
-    direccion: '',
-    tipo: 'menudeo',
-    limiteCredito: '',
-    notas: ''
-  });
-
-  // Cargar datos del localStorage al iniciar
-  useEffect(() => {
-    const savedData = localStorage.getItem('erpData');
-    if (savedData) {
-      const data = JSON.parse(savedData);
-      if (data.polizas) setPolizas(data.polizas);
-      if (data.creditos) setCreditos(data.creditos);
-      if (data.consignas) setConsignas(data.consignas);
-      if (data.clientes) setClientes(data.clientes);
-      if (data.productos) setProductos(data.productos);
-      if (data.ventas) setVentas(data.ventas);
-      if (data.cuentasContables) setCuentasContables(data.cuentasContables);
-    }
-  }, []);
-
-  // Guardar datos en localStorage
-  useEffect(() => {
-    const dataToSave = {
-      polizas,
-      creditos,
-      consignas,
-      clientes,
-      productos,
-      ventas,
-      cuentasContables
-    };
-    localStorage.setItem('erpData', JSON.stringify(dataToSave));
-  }, [polizas, creditos, consignas, clientes, productos, ventas, cuentasContables]);
-
-  // Funciones auxiliares
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(amount || 0);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  // Funciones del modal
-  const openModal = (type, item = null) => {
-    setModalType(type);
-    setEditingItem(item);
-    if (item) {
-      setFormData({ ...formData, ...item });
-    } else {
-      // Reset form data
-      setFormData({
-        fecha: new Date().toISOString().split('T')[0],
-        tipo: 'diario',
-        concepto: '',
-        movimientos: [],
-        cliente: '',
-        monto: '',
-        plazo: '',
-        tasaInteres: '',
-        fechaInicio: new Date().toISOString().split('T')[0],
-        estado: 'activo',
-        producto: '',
-        cantidad: '',
-        fechaConsigna: new Date().toISOString().split('T')[0],
-        fechaLimite: '',
-        precioVenta: '',
-        nombre: '',
-        rfc: '',
-        telefono: '',
-        email: '',
-        direccion: '',
-        tipo: 'menudeo',
-        limiteCredito: '',
-        notas: ''
-      });
-    }
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingItem(null);
-  };
-
-  // Agregar movimiento a póliza
-  const agregarMovimientoPoliza = () => {
-    setFormData({
-      ...formData,
-      movimientos: [...formData.movimientos, { cuenta: '', debe: 0, haber: 0 }]
-    });
-  };
-
-  // Eliminar movimiento de póliza
-  const eliminarMovimientoPoliza = (index) => {
-    const nuevosMovimientos = formData.movimientos.filter((_, i) => i !== index);
-    setFormData({ ...formData, movimientos: nuevosMovimientos });
-  };
-
-  // Actualizar movimiento de póliza
-  const actualizarMovimientoPoliza = (index, field, value) => {
-    const nuevosMovimientos = [...formData.movimientos];
-    nuevosMovimientos[index][field] = field === 'cuenta' ? value : parseFloat(value) || 0;
-    setFormData({ ...formData, movimientos: nuevosMovimientos });
-  };
-
-  // Guardar póliza
-  const guardarPoliza = () => {
-    const totalDebe = formData.movimientos.reduce((sum, mov) => sum + (parseFloat(mov.debe) || 0), 0);
-    const totalHaber = formData.movimientos.reduce((sum, mov) => sum + (parseFloat(mov.haber) || 0), 0);
-    
-    if (Math.abs(totalDebe - totalHaber) > 0.01) {
-      alert('La póliza no está balanceada. El debe y el haber deben ser iguales.');
-      return;
-    }
-
-    const nuevaPoliza = {
-      id: editingItem ? editingItem.id : Date.now(),
-      numero: editingItem ? editingItem.numero : polizas.length + 1,
-      fecha: formData.fecha,
-      tipo: formData.tipo,
-      concepto: formData.concepto,
-      movimientos: formData.movimientos,
-      totalDebe,
-      totalHaber,
-      estado: 'registrada'
-    };
-
-    if (editingItem) {
-      setPolizas(polizas.map(p => p.id === editingItem.id ? nuevaPoliza : p));
-    } else {
-      setPolizas([...polizas, nuevaPoliza]);
-      
-      // Actualizar saldos de cuentas contables
-      formData.movimientos.forEach(mov => {
-        const cuenta = cuentasContables.find(c => c.codigo === mov.cuenta);
-        if (cuenta) {
-          const nuevoSaldo = cuenta.naturaleza === 'deudora' 
-            ? cuenta.saldo + mov.debe - mov.haber
-            : cuenta.saldo + mov.haber - mov.debe;
-          
-          setCuentasContables(cuentasContables.map(c => 
-            c.codigo === mov.cuenta ? { ...c, saldo: nuevoSaldo } : c
-          ));
-        }
-      });
-    }
-
-    closeModal();
-  };
-
-  // Guardar crédito
-  const guardarCredito = () => {
-    const nuevoCredito = {
-      id: editingItem ? editingItem.id : Date.now(),
-      cliente: formData.cliente,
-      monto: parseFloat(formData.monto),
-      plazo: parseInt(formData.plazo),
-      tasaInteres: parseFloat(formData.tasaInteres),
-      fechaInicio: formData.fechaInicio,
-      fechaVencimiento: new Date(new Date(formData.fechaInicio).setMonth(new Date(formData.fechaInicio).getMonth() + parseInt(formData.plazo))).toISOString().split('T')[0],
-      estado: formData.estado,
-      saldoPendiente: editingItem ? editingItem.saldoPendiente : parseFloat(formData.monto),
-      pagosRealizados: editingItem ? editingItem.pagosRealizados : []
-    };
-
-    if (editingItem) {
-      setCreditos(creditos.map(c => c.id === editingItem.id ? nuevoCredito : c));
-    } else {
-      setCreditos([...creditos, nuevoCredito]);
-    }
-
-    closeModal();
-  };
-
-  // Guardar consigna
-  const guardarConsigna = () => {
-    const nuevaConsigna = {
-      id: editingItem ? editingItem.id : Date.now(),
-      cliente: formData.cliente,
-      producto: formData.producto,
-      cantidad: parseInt(formData.cantidad),
-      fechaConsigna: formData.fechaConsigna,
-      fechaLimite: formData.fechaLimite,
-      precioVenta: parseFloat(formData.precioVenta),
-      estado: editingItem ? editingItem.estado : 'pendiente',
-      cantidadVendida: editingItem ? editingItem.cantidadVendida : 0,
-      montoLiquidado: editingItem ? editingItem.montoLiquidado : 0
-    };
-
-    if (editingItem) {
-      setConsignas(consignas.map(c => c.id === editingItem.id ? nuevaConsigna : c));
-    } else {
-      setConsignas([...consignas, nuevaConsigna]);
-    }
-
-    closeModal();
-  };
-
-  // Guardar cliente
-  const guardarCliente = () => {
-    const nuevoCliente = {
-      id: editingItem ? editingItem.id : Date.now(),
-      nombre: formData.nombre,
-      rfc: formData.rfc,
-      telefono: formData.telefono,
-      email: formData.email,
-      direccion: formData.direccion,
-      tipo: formData.tipo,
-      limiteCredito: parseFloat(formData.limiteCredito) || 0,
-      saldoPendiente: editingItem ? editingItem.saldoPendiente : 0,
-      totalCompras: editingItem ? editingItem.totalCompras : 0,
-      ultimaCompra: editingItem ? editingItem.ultimaCompra : null,
-      notas: formData.notas,
-      fechaRegistro: editingItem ? editingItem.fechaRegistro : new Date().toISOString()
-    };
-
-    if (editingItem) {
-      setClientes(clientes.map(c => c.id === editingItem.id ? nuevoCliente : c));
-    } else {
-      setClientes([...clientes, nuevoCliente]);
-    }
-
-    closeModal();
-  };
-
-  // Componente del Dashboard
-  const Dashboard = () => {
-    const ventasDelMes = ventas.filter(v => {
-      const ventaDate = new Date(v.fecha);
-      const now = new Date();
-      return ventaDate.getMonth() === now.getMonth() && ventaDate.getFullYear() === now.getFullYear();
-    }).reduce((sum, v) => sum + v.total, 0);
-
-    const creditosActivos = creditos.filter(c => c.estado === 'activo').length;
-    const consignasPendientes = consignas.filter(c => c.estado === 'pendiente').length;
-    const totalClientes = clientes.length;
-
-    return (
-      <div className="p-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h2>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malanguísimas ERP - Sistema Contable y CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Ventas del Mes</p>
-                <p className="text-2xl font-bold text-gray-800">{formatCurrency(ventasDelMes)}</p>
-              </div>
-              <DollarSign className="w-12 h-12 text-blue-500 opacity-20" />
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Animaciones */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Estilos para las tablas */
+        .table-hover tbody tr:hover {
+            background-color: #f3f4f6;
+        }
+        
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 50;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 42rem;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="flex items-center justify-between px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-xl">M</span>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">Malanguísimas ERP</h1>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Total Clientes</p>
-                <p className="text-2xl font-bold text-gray-800">{totalClientes}</p>
-              </div>
-              <Users className="w-12 h-12 text-green-500 opacity-20" />
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-500" id="currentDate"></span>
+                <button class="p-2 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-clock"></i>
+                </button>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Créditos Activos</p>
-                <p className="text-2xl font-bold text-gray-800">{creditosActivos}</p>
-              </div>
-              <CreditCard className="w-12 h-12 text-orange-500 opacity-20" />
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="flex px-6">
+            <button onclick="showModule('dashboard')" class="nav-btn px-6 py-3 border-b-2 border-blue-500 text-blue-600 transition-colors">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-chart-bar"></i>
+                    Dashboard
+                </div>
+            </button>
+            <button onclick="showModule('contabilidad')" class="nav-btn px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 transition-colors">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-calculator"></i>
+                    Contabilidad
+                </div>
+            </button>
+            <button onclick="showModule('creditos')" class="nav-btn px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 transition-colors">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-credit-card"></i>
+                    Créditos
+                </div>
+            </button>
+            <button onclick="showModule('consignas')" class="nav-btn px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 transition-colors">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-box"></i>
+                    Consignas
+                </div>
+            </button>
+            <button onclick="showModule('crm')" class="nav-btn px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 transition-colors">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-users"></i>
+                    CRM
+                </div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="min-h-[calc(100vh-8rem)]">
+        <!-- Dashboard Module -->
+        <div id="dashboard-module" class="module-content p-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">Dashboard</h2>
+            
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Ventas del Mes</p>
+                            <p class="text-2xl font-bold text-gray-800" id="ventasMes">$0.00</p>
+                        </div>
+                        <i class="fas fa-dollar-sign text-4xl text-blue-500 opacity-20"></i>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Clientes</p>
+                            <p class="text-2xl font-bold text-gray-800" id="totalClientes">0</p>
+                        </div>
+                        <i class="fas fa-users text-4xl text-green-500 opacity-20"></i>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Créditos Activos</p>
+                            <p class="text-2xl font-bold text-gray-800" id="creditosActivos">0</p>
+                        </div>
+                        <i class="fas fa-credit-card text-4xl text-orange-500 opacity-20"></i>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Consignas Pendientes</p>
+                            <p class="text-2xl font-bold text-gray-800" id="consignasPendientes">0</p>
+                        </div>
+                        <i class="fas fa-box text-4xl text-purple-500 opacity-20"></i>
+                    </div>
+                </div>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Consignas Pendientes</p>
-                <p className="text-2xl font-bold text-gray-800">{consignasPendientes}</p>
-              </div>
-              <Package className="w-12 h-12 text-purple-500 opacity-20" />
+
+            <div class="grid grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Últimas Pólizas</h3>
+                    <div id="ultimasPolizas" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">No hay pólizas registradas</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Créditos por Vencer</h3>
+                    <div id="creditosPorVencer" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">No hay créditos próximos a vencer</p>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Últimas Pólizas</h3>
-            <div className="space-y-3">
-              {polizas.slice(-5).reverse().map(poliza => (
-                <div key={poliza.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-800">Póliza #{poliza.numero}</p>
-                    <p className="text-sm text-gray-500">{poliza.concepto}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-800">{formatCurrency(poliza.totalDebe)}</p>
-                    <p className="text-xs text-gray-500">{formatDate(poliza.fecha)}</p>
-                  </div>
-                </div>
-              ))}
+        <!-- Contabilidad Module -->
+        <div id="contabilidad-module" class="module-content p-6 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">Contabilidad</h2>
+            
+            <div class="flex gap-4 mb-6">
+                <button onclick="showContabilidadSection('polizas')" class="sub-nav-btn px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors">
+                    Pólizas
+                </button>
+                <button onclick="showContabilidadSection('catalogo')" class="sub-nav-btn px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-colors">
+                    Catálogo de Cuentas
+                </button>
+                <button onclick="showContabilidadSection('balanza')" class="sub-nav-btn px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-colors">
+                    Balanza de Comprobación
+                </button>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Créditos por Vencer</h3>
-            <div className="space-y-3">
-              {creditos
+            <!-- Pólizas Section -->
+            <div id="polizas-section" class="contabilidad-section bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Pólizas Contables</h3>
+                    <button onclick="openModal('poliza')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Nueva Póliza
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debe</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Haber</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="polizasTableBody" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                    No hay pólizas registradas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Catálogo Section -->
+            <div id="catalogo-section" class="contabilidad-section bg-white rounded-xl shadow-lg p-6 hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Catálogo de Cuentas</h3>
+                    <button onclick="openModal('cuenta')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Nueva Cuenta
+                    </button>
+                </div>
+
+                <div id="catalogoCuentas" class="space-y-2">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Balanza Section -->
+            <div id="balanza-section" class="contabilidad-section bg-white rounded-xl shadow-lg p-6 hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Balanza de Comprobación</h3>
+                    <button onclick="generarBalanza()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-sync"></i>
+                        Generar Balanza
+                    </button>
+                </div>
+
+                <div id="balanzaContent">
+                    <p class="text-gray-500 text-center py-8">Haz clic en "Generar Balanza" para ver el reporte</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Créditos Module -->
+        <div id="creditos-module" class="module-content p-6 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">Gestión de Créditos</h2>
+            
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                    <p class="text-gray-500 text-sm">Cartera Total</p>
+                    <p class="text-2xl font-bold text-gray-800" id="carteraTotal">$0.00</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                    <p class="text-gray-500 text-sm">Créditos Activos</p>
+                    <p class="text-2xl font-bold text-gray-800" id="creditosActivosCount">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
+                    <p class="text-gray-500 text-sm">Vencidos</p>
+                    <p class="text-2xl font-bold text-gray-800" id="creditosVencidos">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                    <p class="text-gray-500 text-sm">Tasa Promedio</p>
+                    <p class="text-2xl font-bold text-gray-800" id="tasaPromedio">0%</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Lista de Créditos</h3>
+                    <button onclick="openModal('credito')" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Nuevo Crédito
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Original</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Pendiente</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Plazo</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tasa</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimiento</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditosTableBody" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                    No hay créditos registrados
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Consignas Module -->
+        <div id="consignas-module" class="module-content p-6 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">Gestión de Consignas</h2>
+            
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                    <p class="text-gray-500 text-sm">Valor Total en Consigna</p>
+                    <p class="text-2xl font-bold text-gray-800" id="valorConsignas">$0.00</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                    <p class="text-gray-500 text-sm">Consignas Activas</p>
+                    <p class="text-2xl font-bold text-gray-800" id="consignasActivas">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                    <p class="text-gray-500 text-sm">Liquidadas este Mes</p>
+                    <p class="text-2xl font-bold text-gray-800" id="consignasLiquidadas">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                    <p class="text-gray-500 text-sm">Por Vencer</p>
+                    <p class="text-2xl font-bold text-gray-800" id="consignasPorVencer">0</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Lista de Consignas</h3>
+                    <button onclick="openModal('consigna')" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Nueva Consigna
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Vendido</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Total</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Límite</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consignasTableBody" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                    No hay consignas registradas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CRM Module -->
+        <div id="crm-module" class="module-content p-6 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">CRM - Gestión de Clientes</h2>
+            
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                    <p class="text-gray-500 text-sm">Total Clientes</p>
+                    <p class="text-2xl font-bold text-gray-800" id="totalClientesCRM">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                    <p class="text-gray-500 text-sm">Clientes Activos</p>
+                    <p class="text-2xl font-bold text-gray-800" id="clientesActivos">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                    <p class="text-gray-500 text-sm">Compras Totales</p>
+                    <p class="text-2xl font-bold text-gray-800" id="comprasTotales">$0.00</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                    <p class="text-gray-500 text-sm">Ticket Promedio</p>
+                    <p class="text-2xl font-bold text-gray-800" id="ticketPromedio">$0.00</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-4 flex-1">
+                        <h3 class="text-xl font-semibold text-gray-800">Clientes</h3>
+                        <div class="relative flex-1 max-w-md">
+                            <input type="text" id="searchClientes" placeholder="Buscar clientes..." 
+                                   onkeyup="buscarClientes()" 
+                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                        </div>
+                    </div>
+                    <button onclick="openModal('cliente')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-user-plus"></i>
+                        Nuevo Cliente
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Límite Crédito</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Pendiente</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Compras</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Última Compra</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesTableBody" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                    No hay clientes registrados
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+
+    <script>
+        // Estado global de la aplicación
+        let appData = {
+            polizas: [],
+            creditos: [],
+            consignas: [],
+            clientes: [],
+            productos: [],
+            ventas: [],
+            cuentasContables: [
+                { id: 1, codigo: '1000', nombre: 'ACTIVO', tipo: 'titulo', nivel: 1, naturaleza: 'deudora', saldo: 0 },
+                { id: 2, codigo: '1100', nombre: 'ACTIVO CIRCULANTE', tipo: 'titulo', nivel: 2, naturaleza: 'deudora', saldo: 0 },
+                { id: 3, codigo: '1101', nombre: 'Caja', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 15000 },
+                { id: 4, codigo: '1102', nombre: 'Bancos', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 85000 },
+                { id: 5, codigo: '1103', nombre: 'Clientes', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 45000 },
+                { id: 6, codigo: '1104', nombre: 'Inventarios', tipo: 'detalle', nivel: 3, naturaleza: 'deudora', saldo: 120000 },
+                { id: 7, codigo: '2000', nombre: 'PASIVO', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
+                { id: 8, codigo: '2100', nombre: 'PASIVO CIRCULANTE', tipo: 'titulo', nivel: 2, naturaleza: 'acreedora', saldo: 0 },
+                { id: 9, codigo: '2101', nombre: 'Proveedores', tipo: 'detalle', nivel: 3, naturaleza: 'acreedora', saldo: 35000 },
+                { id: 10, codigo: '3000', nombre: 'CAPITAL', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
+                { id: 11, codigo: '3100', nombre: 'Capital Social', tipo: 'detalle', nivel: 2, naturaleza: 'acreedora', saldo: 200000 },
+                { id: 12, codigo: '4000', nombre: 'INGRESOS', tipo: 'titulo', nivel: 1, naturaleza: 'acreedora', saldo: 0 },
+                { id: 13, codigo: '4100', nombre: 'Ventas', tipo: 'detalle', nivel: 2, naturaleza: 'acreedora', saldo: 0 },
+                { id: 14, codigo: '5000', nombre: 'GASTOS', tipo: 'titulo', nivel: 1, naturaleza: 'deudora', saldo: 0 },
+                { id: 15, codigo: '5100', nombre: 'Costo de Ventas', tipo: 'detalle', nivel: 2, naturaleza: 'deudora', saldo: 0 }
+            ]
+        };
+
+        let currentModal = null;
+        let editingItem = null;
+
+        // Inicializar la aplicación
+        window.onload = function() {
+            loadData();
+            updateCurrentDate();
+            showModule('dashboard');
+            renderCatalogoCuentas();
+            setInterval(updateCurrentDate, 60000);
+        };
+
+        // Actualizar fecha actual
+        function updateCurrentDate() {
+            const date = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = date.toLocaleDateString('es-MX', options);
+        }
+
+        // Cargar datos del localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('erpData');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                appData = { ...appData, ...parsedData };
+            }
+        }
+
+        // Guardar datos en localStorage
+        function saveData() {
+            localStorage.setItem('erpData', JSON.stringify(appData));
+        }
+
+        // Formatear moneda
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN'
+            }).format(amount || 0);
+        }
+
+        // Formatear fecha
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Mostrar módulo
+        function showModule(moduleName) {
+            // Ocultar todos los módulos
+            document.querySelectorAll('.module-content').forEach(module => {
+                module.classList.add('hidden');
+            });
+            
+            // Mostrar el módulo seleccionado
+            document.getElementById(moduleName + '-module').classList.remove('hidden');
+            
+            // Actualizar navegación
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-600');
+            });
+            event.target.closest('.nav-btn').classList.remove('border-transparent', 'text-gray-600');
+            event.target.closest('.nav-btn').classList.add('border-blue-500', 'text-blue-600');
+            
+            // Actualizar datos del módulo
+            if (moduleName === 'dashboard') updateDashboard();
+            if (moduleName === 'creditos') updateCreditos();
+            if (moduleName === 'consignas') updateConsignas();
+            if (moduleName === 'crm') updateCRM();
+        }
+
+        // Mostrar sección de contabilidad
+        function showContabilidadSection(section) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.contabilidad-section').forEach(sec => {
+                sec.classList.add('hidden');
+            });
+            
+            // Mostrar la sección seleccionada
+            document.getElementById(section + '-section').classList.remove('hidden');
+            
+            // Actualizar botones
+            document.querySelectorAll('.sub-nav-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            event.target.classList.remove('bg-gray-200', 'text-gray-700');
+            event.target.classList.add('bg-blue-600', 'text-white');
+            
+            // Actualizar contenido
+            if (section === 'polizas') updatePolizas();
+        }
+
+        // Actualizar Dashboard
+        function updateDashboard() {
+            // Calcular métricas
+            const ventasMes = appData.ventas.filter(v => {
+                const ventaDate = new Date(v.fecha);
+                const now = new Date();
+                return ventaDate.getMonth() === now.getMonth() && ventaDate.getFullYear() === now.getFullYear();
+            }).reduce((sum, v) => sum + v.total, 0);
+            
+            const creditosActivos = appData.creditos.filter(c => c.estado === 'activo').length;
+            const consignasPendientes = appData.consignas.filter(c => c.estado === 'pendiente').length;
+            
+            // Actualizar valores
+            document.getElementById('ventasMes').textContent = formatCurrency(ventasMes);
+            document.getElementById('totalClientes').textContent = appData.clientes.length;
+            document.getElementById('creditosActivos').textContent = creditosActivos;
+            document.getElementById('consignasPendientes').textContent = consignasPendientes;
+            
+            // Actualizar últimas pólizas
+            const ultimasPolizasDiv = document.getElementById('ultimasPolizas');
+            if (appData.polizas.length > 0) {
+                ultimasPolizasDiv.innerHTML = appData.polizas.slice(-5).reverse().map(poliza => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <p class="font-medium text-gray-800">Póliza #${poliza.numero}</p>
+                            <p class="text-sm text-gray-500">${poliza.concepto}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-800">${formatCurrency(poliza.totalDebe)}</p>
+                            <p class="text-xs text-gray-500">${formatDate(poliza.fecha)}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Actualizar créditos por vencer
+            const creditosPorVencerDiv = document.getElementById('creditosPorVencer');
+            const creditosProximos = appData.creditos
                 .filter(c => c.estado === 'activo')
                 .sort((a, b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento))
-                .slice(0, 5)
-                .map(credito => {
-                  const cliente = clientes.find(c => c.id === parseInt(credito.cliente));
-                  const diasRestantes = Math.ceil((new Date(credito.fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
-                  
-                  return (
-                    <div key={credito.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-800">{cliente?.nombre || 'Cliente no encontrado'}</p>
-                        <p className="text-sm text-gray-500">Saldo: {formatCurrency(credito.saldoPendiente)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-medium ${diasRestantes < 7 ? 'text-red-600' : 'text-gray-800'}`}>
-                          {diasRestantes} días
-                        </p>
-                        <p className="text-xs text-gray-500">Vence: {formatDate(credito.fechaVencimiento)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Componente de Contabilidad
-  const Contabilidad = () => {
-    const [subModule, setSubModule] = useState('polizas');
-    const [expandedAccounts, setExpandedAccounts] = useState([]);
-
-    const toggleAccount = (codigo) => {
-      setExpandedAccounts(prev => 
-        prev.includes(codigo) 
-          ? prev.filter(c => c !== codigo)
-          : [...prev, codigo]
-      );
-    };
-
-    const calcularSaldoCuenta = (cuenta) => {
-      if (cuenta.tipo === 'detalle') {
-        return cuenta.saldo;
-      }
-      
-      // Para cuentas de título, sumar los saldos de las cuentas hijas
-      const cuentasHijas = cuentasContables.filter(c => 
-        c.codigo.startsWith(cuenta.codigo) && c.codigo !== cuenta.codigo
-      );
-      
-      return cuentasHijas.reduce((sum, c) => sum + calcularSaldoCuenta(c), 0);
-    };
-
-    const CatalogoCuentas = () => (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800">Catálogo de Cuentas</h3>
-          <button
-            onClick={() => openModal('cuenta')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Cuenta
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {cuentasContables
-            .filter(c => c.nivel === 1)
-            .map(cuenta => (
-              <div key={cuenta.id}>
-                <div
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  onClick={() => toggleAccount(cuenta.codigo)}
-                >
-                  <div className="flex items-center gap-2">
-                    {cuentasContables.some(c => c.codigo.startsWith(cuenta.codigo) && c.codigo !== cuenta.codigo) && (
-                      expandedAccounts.includes(cuenta.codigo) ? 
-                        <ChevronDown className="w-4 h-4 text-gray-500" /> : 
-                        <ChevronRight className="w-4 h-4 text-gray-500" />
-                    )}
-                    <span className="font-medium text-gray-800">{cuenta.codigo}</span>
-                    <span className="text-gray-600">{cuenta.nombre}</span>
-                  </div>
-                  <span className="font-medium text-gray-800">
-                    {formatCurrency(calcularSaldoCuenta(cuenta))}
-                  </span>
-                </div>
-
-                {expandedAccounts.includes(cuenta.codigo) && (
-                  <div className="ml-6 mt-2 space-y-2">
-                    {cuentasContables
-                      .filter(c => c.codigo.startsWith(cuenta.codigo) && c.codigo !== cuenta.codigo && c.nivel === 2)
-                      .map(subcuenta => (
-                        <div key={subcuenta.id}>
-                          <div
-                            className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleAccount(subcuenta.codigo);
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              {cuentasContables.some(c => c.codigo.startsWith(subcuenta.codigo) && c.codigo !== subcuenta.codigo) && (
-                                expandedAccounts.includes(subcuenta.codigo) ? 
-                                  <ChevronDown className="w-4 h-4 text-gray-400" /> : 
-                                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                              )}
-                              <span className="text-sm text-gray-700">{subcuenta.codigo}</span>
-                              <span className="text-sm text-gray-600">{subcuenta.nombre}</span>
+                .slice(0, 5);
+                
+            if (creditosProximos.length > 0) {
+                creditosPorVencerDiv.innerHTML = creditosProximos.map(credito => {
+                    const cliente = appData.clientes.find(c => c.id === parseInt(credito.cliente));
+                    const diasRestantes = Math.ceil((new Date(credito.fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+                    
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-800">${cliente?.nombre || 'Cliente no encontrado'}</p>
+                                <p class="text-sm text-gray-500">Saldo: ${formatCurrency(credito.saldoPendiente)}</p>
                             </div>
-                            <span className="text-sm font-medium text-gray-700">
-                              {formatCurrency(calcularSaldoCuenta(subcuenta))}
-                            </span>
-                          </div>
-
-                          {expandedAccounts.includes(subcuenta.codigo) && (
-                            <div className="ml-6 mt-1 space-y-1">
-                              {cuentasContables
-                                .filter(c => c.codigo.startsWith(subcuenta.codigo) && c.codigo !== subcuenta.codigo && c.nivel === 3)
-                                .map(detalle => (
-                                  <div
-                                    key={detalle.id}
-                                    className="flex items-center justify-between p-2 bg-white rounded hover:bg-gray-50 transition-colors"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm text-gray-600">{detalle.codigo}</span>
-                                      <span className="text-sm text-gray-500">{detalle.nombre}</span>
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-600">
-                                      {formatCurrency(detalle.saldo)}
-                                    </span>
-                                  </div>
-                                ))}
+                            <div class="text-right">
+                                <p class="font-medium ${diasRestantes < 7 ? 'text-red-600' : 'text-gray-800'}">
+                                    ${diasRestantes} días
+                                </p>
+                                <p class="text-xs text-gray-500">Vence: ${formatDate(credito.fechaVencimiento)}</p>
                             </div>
-                          )}
                         </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            ))}
-        </div>
-      </div>
-    );
+                    `;
+                }).join('');
+            }
+        }
 
-    const PolizasContables = () => (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800">Pólizas Contables</h3>
-          <button
-            onClick={() => openModal('poliza')}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Póliza
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Número
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fecha
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Concepto
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Debe
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Haber
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {polizas.map(poliza => (
-                <tr key={poliza.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{poliza.numero}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(poliza.fecha)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                      {poliza.tipo}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {poliza.concepto}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {formatCurrency(poliza.totalDebe)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {formatCurrency(poliza.totalHaber)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <button
-                      onClick={() => openModal('verPoliza', poliza)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-
-    const BalanzaComprobacion = () => {
-      const balanza = cuentasContables
-        .filter(c => c.tipo === 'detalle')
-        .map(cuenta => {
-          const movimientosDebe = polizas.reduce((sum, poliza) => {
-            const movsCuenta = poliza.movimientos.filter(m => m.cuenta === cuenta.codigo);
-            return sum + movsCuenta.reduce((s, m) => s + m.debe, 0);
-          }, 0);
-
-          const movimientosHaber = polizas.reduce((sum, poliza) => {
-            const movsCuenta = poliza.movimientos.filter(m => m.cuenta === cuenta.codigo);
-            return sum + movsCuenta.reduce((s, m) => s + m.haber, 0);
-          }, 0);
-
-          const saldoDeudor = cuenta.naturaleza === 'deudora' ? cuenta.saldo : 0;
-          const saldoAcreedor = cuenta.naturaleza === 'acreedora' ? cuenta.saldo : 0;
-
-          return {
-            cuenta: cuenta.codigo,
-            nombre: cuenta.nombre,
-            saldoInicial: cuenta.saldo,
-            movimientosDebe,
-            movimientosHaber,
-            saldoDeudor,
-            saldoAcreedor
-          };
-        });
-
-      const totales = balanza.reduce((acc, row) => ({
-        movimientosDebe: acc.movimientosDebe + row.movimientosDebe,
-        movimientosHaber: acc.movimientosHaber + row.movimientosHaber,
-        saldoDeudor: acc.saldoDeudor + row.saldoDeudor,
-        saldoAcreedor: acc.saldoAcreedor + row.saldoAcreedor
-      }), { movimientosDebe: 0, movimientosHaber: 0, saldoDeudor: 0, saldoAcreedor: 0 });
-
-      return (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800">Balanza de Comprobación</h3>
-            <button className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Exportar
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cuenta
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nombre
-                  </th>
-                  <th colSpan="2" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Movimientos
-                  </th>
-                  <th colSpan="2" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldos
-                  </th>
-                </tr>
-                <tr>
-                  <th className="px-6 py-3"></th>
-                  <th className="px-6 py-3"></th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Debe
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Haber
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Deudor
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acreedor
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {balanza.map((row, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {row.cuenta}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {row.nombre}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {formatCurrency(row.movimientosDebe)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {formatCurrency(row.movimientosHaber)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {row.saldoDeudor > 0 ? formatCurrency(row.saldoDeudor) : ''}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {row.saldoAcreedor > 0 ? formatCurrency(row.saldoAcreedor) : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-100 border-t-2 border-gray-300">
-                <tr>
-                  <td colSpan="2" className="px-6 py-4 text-right font-bold text-gray-900">
-                    TOTALES
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-gray-900">
-                    {formatCurrency(totales.movimientosDebe)}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-gray-900">
-                    {formatCurrency(totales.movimientosHaber)}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-gray-900">
-                    {formatCurrency(totales.saldoDeudor)}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-gray-900">
-                    {formatCurrency(totales.saldoAcreedor)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <div className="p-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">Contabilidad</h2>
-        
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setSubModule('polizas')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              subModule === 'polizas' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Pólizas
-          </button>
-          <button
-            onClick={() => setSubModule('catalogo')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              subModule === 'catalogo' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Catálogo de Cuentas
-          </button>
-          <button
-            onClick={() => setSubModule('balanza')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              subModule === 'balanza' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Balanza de Comprobación
-          </button>
-        </div>
-
-        {subModule === 'polizas' && <PolizasContables />}
-        {subModule === 'catalogo' && <CatalogoCuentas />}
-        {subModule === 'balanza' && <BalanzaComprobacion />}
-      </div>
-    );
-  };
-
-  // Componente de Créditos
-  const Creditos = () => {
-    const creditosActivos = creditos.filter(c => c.estado === 'activo');
-    const totalCartera = creditosActivos.reduce((sum, c) => sum + c.saldoPendiente, 0);
-    
-    return (
-      <div className="p-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">Gestión de Créditos</h2>
-        
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-            <p className="text-gray-500 text-sm">Cartera Total</p>
-            <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalCartera)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-            <p className="text-gray-500 text-sm">Créditos Activos</p>
-            <p className="text-2xl font-bold text-gray-800">{creditosActivos.length}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
-            <p className="text-gray-500 text-sm">Vencidos</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {creditos.filter(c => c.estado === 'vencido').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <p className="text-gray-500 text-sm">Tasa Promedio</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {creditosActivos.length > 0 
-                ? (creditosActivos.reduce((sum, c) => sum + c.tasaInteres, 0) / creditosActivos.length).toFixed(1) 
-                : 0}%
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800">Lista de Créditos</h3>
-            <button
-              onClick={() => openModal('credito')}
-              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Crédito
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Monto Original
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldo Pendiente
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Plazo
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tasa
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vencimiento
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {creditos.map(credito => {
-                  const cliente = clientes.find(c => c.id === parseInt(credito.cliente));
-                  const diasRestantes = Math.ceil((new Date(credito.fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
-                  
-                  return (
-                    <tr key={credito.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {cliente?.nombre || 'Cliente no encontrado'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {cliente?.rfc}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {formatCurrency(credito.monto)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                        {formatCurrency(credito.saldoPendiente)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {credito.plazo} meses
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {credito.tasaInteres}%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        <div>
-                          {formatDate(credito.fechaVencimiento)}
-                        </div>
-                        <div className={`text-xs ${diasRestantes < 7 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
-                          {diasRestantes > 0 ? `${diasRestantes} días` : 'Vencido'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          credito.estado === 'activo' 
-                            ? 'bg-green-100 text-green-800' 
-                            : credito.estado === 'vencido' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {credito.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <button
-                          onClick={() => openModal('pago', credito)}
-                          className="text-green-600 hover:text-green-900 mr-3"
-                        >
-                          <DollarSign className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openModal('credito', credito)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </td>
+        // Actualizar tabla de pólizas
+        function updatePolizas() {
+            const tbody = document.getElementById('polizasTableBody');
+            
+            if (appData.polizas.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            No hay pólizas registradas
+                        </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = appData.polizas.map(poliza => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#${poliza.numero}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(poliza.fecha)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            ${poliza.tipo}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${poliza.concepto}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatCurrency(poliza.totalDebe)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${formatCurrency(poliza.totalHaber)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <button onclick="verPoliza(${poliza.id})" class="text-indigo-600 hover:text-indigo-900">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-  // Componente de Consignas
-  const Consignas = () => {
-    const consignasPendientes = consignas.filter(c => c.estado === 'pendiente');
-    const valorTotal = consignasPendientes.reduce((sum, c) => sum + (c.cantidad * c.precioVenta), 0);
-    
-    return (
-      <div className="p-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">Gestión de Consignas</h2>
-        
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-            <p className="text-gray-500 text-sm">Valor Total en Consigna</p>
-            <p className="text-2xl font-bold text-gray-800">{formatCurrency(valorTotal)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <p className="text-gray-500 text-sm">Consignas Activas</p>
-            <p className="text-2xl font-bold text-gray-800">{consignasPendientes.length}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-            <p className="text-gray-500 text-sm">Liquidadas este Mes</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {consignas.filter(c => {
+        // Actualizar créditos
+        function updateCreditos() {
+            const creditosActivos = appData.creditos.filter(c => c.estado === 'activo');
+            const totalCartera = creditosActivos.reduce((sum, c) => sum + c.saldoPendiente, 0);
+            const creditosVencidos = appData.creditos.filter(c => c.estado === 'vencido').length;
+            const tasaPromedio = creditosActivos.length > 0 
+                ? (creditosActivos.reduce((sum, c) => sum + c.tasaInteres, 0) / creditosActivos.length).toFixed(1)
+                : 0;
+            
+            // Actualizar métricas
+            document.getElementById('carteraTotal').textContent = formatCurrency(totalCartera);
+            document.getElementById('creditosActivosCount').textContent = creditosActivos.length;
+            document.getElementById('creditosVencidos').textContent = creditosVencidos;
+            document.getElementById('tasaPromedio').textContent = tasaPromedio + '%';
+            
+            // Actualizar tabla
+            const tbody = document.getElementById('creditosTableBody');
+            
+            if (appData.creditos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                            No hay créditos registrados
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = appData.creditos.map(credito => {
+                const cliente = appData.clientes.find(c => c.id === parseInt(credito.cliente));
+                const diasRestantes = Math.ceil((new Date(credito.fechaVencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+                
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${cliente?.nombre || 'Cliente no encontrado'}
+                            </div>
+                            <div class="text-sm text-gray-500">${cliente?.rfc || ''}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                            ${formatCurrency(credito.monto)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                            ${formatCurrency(credito.saldoPendiente)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            ${credito.plazo} meses
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            ${credito.tasaInteres}%
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            <div>${formatDate(credito.fechaVencimiento)}</div>
+                            <div class="text-xs ${diasRestantes < 7 ? 'text-red-600 font-medium' : 'text-gray-400'}">
+                                ${diasRestantes > 0 ? diasRestantes + ' días' : 'Vencido'}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                                credito.estado === 'activo' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : credito.estado === 'vencido' 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-gray-100 text-gray-800'
+                            }">
+                                ${credito.estado}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button onclick="editarCredito(${credito.id})" class="text-indigo-600 hover:text-indigo-900">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Actualizar consignas
+        function updateConsignas() {
+            const consignasPendientes = appData.consignas.filter(c => c.estado === 'pendiente');
+            const valorTotal = consignasPendientes.reduce((sum, c) => sum + (c.cantidad * c.precioVenta), 0);
+            const consignasLiquidadas = appData.consignas.filter(c => {
                 if (c.estado !== 'liquidada') return false;
                 const fecha = new Date(c.fechaLiquidacion);
                 const now = new Date();
                 return fecha.getMonth() === now.getMonth() && fecha.getFullYear() === now.getFullYear();
-              }).length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-            <p className="text-gray-500 text-sm">Por Vencer</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {consignasPendientes.filter(c => {
+            }).length;
+            const consignasPorVencer = consignasPendientes.filter(c => {
                 const diasRestantes = Math.ceil((new Date(c.fechaLimite) - new Date()) / (1000 * 60 * 60 * 24));
                 return diasRestantes <= 7 && diasRestantes > 0;
-              }).length}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800">Lista de Consignas</h3>
-            <button
-              onClick={() => openModal('consigna')}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Consigna
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Producto
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cantidad
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vendido
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Precio
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Valor Total
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha Límite
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {consignas.map(consigna => {
-                  const cliente = clientes.find(c => c.id === parseInt(consigna.cliente));
-                  const diasRestantes = Math.ceil((new Date(consigna.fechaLimite) - new Date()) / (1000 * 60 * 60 * 24));
-                  
-                  return (
-                    <tr key={consigna.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {cliente?.nombre || 'Cliente no encontrado'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {consigna.producto}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {consigna.cantidad}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {consigna.cantidadVendida}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {formatCurrency(consigna.precioVenta)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                        {formatCurrency(consigna.cantidad * consigna.precioVenta)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        <div>
-                          {formatDate(consigna.fechaLimite)}
-                        </div>
-                        {consigna.estado === 'pendiente' && (
-                          <div className={`text-xs ${diasRestantes < 7 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
-                            {diasRestantes > 0 ? `${diasRestantes} días` : 'Vencido'}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          consigna.estado === 'pendiente' 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : consigna.estado === 'liquidada' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {consigna.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        {consigna.estado === 'pendiente' && (
-                          <button
-                            onClick={() => openModal('liquidarConsigna', consigna)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openModal('consigna', consigna)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </td>
+            }).length;
+            
+            // Actualizar métricas
+            document.getElementById('valorConsignas').textContent = formatCurrency(valorTotal);
+            document.getElementById('consignasActivas').textContent = consignasPendientes.length;
+            document.getElementById('consignasLiquidadas').textContent = consignasLiquidadas;
+            document.getElementById('consignasPorVencer').textContent = consignasPorVencer;
+            
+            // Actualizar tabla
+            const tbody = document.getElementById('consignasTableBody');
+            
+            if (appData.consignas.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                            No hay consignas registradas
+                        </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = appData.consignas.map(consigna => {
+                const cliente = appData.clientes.find(c => c.id === parseInt(consigna.cliente));
+                const diasRestantes = Math.ceil((new Date(consigna.fechaLimite) - new Date()) / (1000 * 60 * 60 * 24));
+                
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${cliente?.nombre || 'Cliente no encontrado'}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${consigna.producto}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${consigna.cantidad}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${consigna.cantidadVendida}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                            ${formatCurrency(consigna.precioVenta)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                            ${formatCurrency(consigna.cantidad * consigna.precioVenta)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            <div>${formatDate(consigna.fechaLimite)}</div>
+                            ${consigna.estado === 'pendiente' ? `
+                                <div class="text-xs ${diasRestantes < 7 ? 'text-red-600 font-medium' : 'text-gray-400'}">
+                                    ${diasRestantes > 0 ? diasRestantes + ' días' : 'Vencido'}
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                                consigna.estado === 'pendiente' 
+                                    ? 'bg-yellow-100 text-yellow-800' 
+                                    : consigna.estado === 'liquidada' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-gray-100 text-gray-800'
+                            }">
+                                ${consigna.estado}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            ${consigna.estado === 'pendiente' ? `
+                                <button onclick="liquidarConsigna(${consigna.id})" class="text-green-600 hover:text-green-900 mr-3">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                            <button onclick="editarConsigna(${consigna.id})" class="text-indigo-600 hover:text-indigo-900">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
 
-  // Componente CRM
-  const CRM = () => {
-    const clientesFiltrados = clientes.filter(cliente => 
-      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.rfc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        // Actualizar CRM
+        function updateCRM() {
+            const totalCompras = appData.clientes.reduce((sum, c) => sum + c.totalCompras, 0);
+            const clientesActivos = appData.clientes.filter(c => {
+                if (!c.ultimaCompra) return false;
+                const diasInactivo = Math.ceil((new Date() - new Date(c.ultimaCompra)) / (1000 * 60 * 60 * 24));
+                return diasInactivo <= 30;
+            }).length;
+            const ticketPromedio = appData.clientes.length > 0 ? totalCompras / appData.clientes.length : 0;
+            
+            // Actualizar métricas
+            document.getElementById('totalClientesCRM').textContent = appData.clientes.length;
+            document.getElementById('clientesActivos').textContent = clientesActivos;
+            document.getElementById('comprasTotales').textContent = formatCurrency(totalCompras);
+            document.getElementById('ticketPromedio').textContent = formatCurrency(ticketPromedio);
+            
+            // Actualizar tabla
+            actualizarTablaClientes();
+        }
 
-    const calcularEstadisticas = () => {
-      const totalCompras = clientes.reduce((sum, c) => sum + c.totalCompras, 0);
-      const clientesActivos = clientes.filter(c => {
-        if (!c.ultimaCompra) return false;
-        const diasInactivo = Math.ceil((new Date() - new Date(c.ultimaCompra)) / (1000 * 60 * 60 * 24));
-        return diasInactivo <= 30;
-      }).length;
+        // Buscar clientes
+        function buscarClientes() {
+            const searchTerm = document.getElementById('searchClientes').value.toLowerCase();
+            actualizarTablaClientes(searchTerm);
+        }
 
-      return { totalCompras, clientesActivos };
-    };
-
-    const stats = calcularEstadisticas();
-
-    return (
-      <div className="p-6">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">CRM - Gestión de Clientes</h2>
-        
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-            <p className="text-gray-500 text-sm">Total Clientes</p>
-            <p className="text-2xl font-bold text-gray-800">{clientes.length}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <p className="text-gray-500 text-sm">Clientes Activos</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.clientesActivos}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-            <p className="text-gray-500 text-sm">Compras Totales</p>
-            <p className="text-2xl font-bold text-gray-800">{formatCurrency(stats.totalCompras)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-            <p className="text-gray-500 text-sm">Ticket Promedio</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {formatCurrency(clientes.length > 0 ? stats.totalCompras / clientes.length : 0)}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-4 flex-1">
-              <h3 className="text-xl font-semibold text-gray-800">Clientes</h3>
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Buscar clientes..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-            <button
-              onClick={() => openModal('cliente')}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              Nuevo Cliente
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contacto
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Límite Crédito
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldo Pendiente
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Compras
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Última Compra
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {clientesFiltrados.map(cliente => {
-                  const diasInactivo = cliente.ultimaCompra 
+        // Actualizar tabla de clientes
+        function actualizarTablaClientes(searchTerm = '') {
+            const tbody = document.getElementById('clientesTableBody');
+            
+            let clientesFiltrados = appData.clientes;
+            if (searchTerm) {
+                clientesFiltrados = appData.clientes.filter(cliente => 
+                    cliente.nombre.toLowerCase().includes(searchTerm) ||
+                    cliente.rfc.toLowerCase().includes(searchTerm) ||
+                    cliente.email.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            if (clientesFiltrados.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                            ${searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = clientesFiltrados.map(cliente => {
+                const diasInactivo = cliente.ultimaCompra 
                     ? Math.ceil((new Date() - new Date(cliente.ultimaCompra)) / (1000 * 60 * 60 * 24))
                     : null;
-                  
-                  return (
-                    <tr key={cliente.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{cliente.nombre}</div>
-                          <div className="text-sm text-gray-500">{cliente.rfc}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          {cliente.telefono}
-                        </div>
-                        <div className="text-sm text-gray-500 flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          {cliente.email}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          cliente.tipo === 'mayoreo' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {cliente.tipo}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {formatCurrency(cliente.limiteCredito)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                        <span className={cliente.saldoPendiente > 0 ? 'text-red-600' : 'text-gray-900'}>
-                          {formatCurrency(cliente.saldoPendiente)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {formatCurrency(cliente.totalCompras)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {cliente.ultimaCompra ? (
-                          <div>
-                            <div>{formatDate(cliente.ultimaCompra)}</div>
-                            <div className={`text-xs ${diasInactivo > 30 ? 'text-red-600' : 'text-gray-400'}`}>
-                              hace {diasInactivo} días
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">Sin compras</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <button
-                          onClick={() => openModal('clienteDetalle', cliente)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openModal('cliente', cliente)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Modal Component
-  const Modal = () => {
-    if (!showModal) return null;
-
-    const renderModalContent = () => {
-      switch (modalType) {
-        case 'poliza':
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                {editingItem ? 'Editar Póliza' : 'Nueva Póliza'}
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                  <input
-                    type="date"
-                    value={formData.fecha}
-                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                  <select
-                    value={formData.tipo}
-                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="diario">Diario</option>
-                    <option value="ingreso">Ingreso</option>
-                    <option value="egreso">Egreso</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Concepto</label>
-                <textarea
-                  value={formData.concepto}
-                  onChange={(e) => setFormData({ ...formData, concepto: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="2"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">Movimientos</label>
-                  <button
-                    type="button"
-                    onClick={agregarMovimientoPoliza}
-                    className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar línea
-                  </button>
-                </div>
                 
-                <div className="space-y-2">
-                  {formData.movimientos.map((mov, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <select
-                        value={mov.cuenta}
-                        onChange={(e) => actualizarMovimientoPoliza(index, 'cuenta', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      >
-                        <option value="">Seleccionar cuenta...</option>
-                        {cuentasContables
-                          .filter(c => c.tipo === 'detalle')
-                          .map(cuenta => (
-                            <option key={cuenta.id} value={cuenta.codigo}>
-                              {cuenta.codigo} - {cuenta.nombre}
-                            </option>
-                          ))}
-                      </select>
-                      <input
-                        type="number"
-                        value={mov.debe}
-                        onChange={(e) => actualizarMovimientoPoliza(index, 'debe', e.target.value)}
-                        placeholder="Debe"
-                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                      <input
-                        type="number"
-                        value={mov.haber}
-                        onChange={(e) => actualizarMovimientoPoliza(index, 'haber', e.target.value)}
-                        placeholder="Haber"
-                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => eliminarMovimientoPoliza(index)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">${cliente.nombre}</div>
+                                <div class="text-sm text-gray-500">${cliente.rfc}</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900 flex items-center gap-2">
+                                <i class="fas fa-phone text-gray-400"></i>
+                                ${cliente.telefono}
+                            </div>
+                            <div class="text-sm text-gray-500 flex items-center gap-2">
+                                <i class="fas fa-envelope text-gray-400"></i>
+                                ${cliente.email}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                                cliente.tipo === 'mayoreo' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-green-100 text-green-800'
+                            }">
+                                ${cliente.tipo}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                            ${formatCurrency(cliente.limiteCredito)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                            <span class="${cliente.saldoPendiente > 0 ? 'text-red-600' : 'text-gray-900'}">
+                                ${formatCurrency(cliente.saldoPendiente)}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                            ${formatCurrency(cliente.totalCompras)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            ${cliente.ultimaCompra ? `
+                                <div>${formatDate(cliente.ultimaCompra)}</div>
+                                <div class="text-xs ${diasInactivo > 30 ? 'text-red-600' : 'text-gray-400'}">
+                                    hace ${diasInactivo} días
+                                </div>
+                            ` : '<span class="text-gray-400">Sin compras</span>'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button onclick="verCliente(${cliente.id})" class="text-blue-600 hover:text-blue-900 mr-3">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="editarCliente(${cliente.id})" class="text-indigo-600 hover:text-indigo-900">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Renderizar catálogo de cuentas
+        function renderCatalogoCuentas() {
+            const container = document.getElementById('catalogoCuentas');
+            
+            const cuentasNivel1 = appData.cuentasContables.filter(c => c.nivel === 1);
+            
+            container.innerHTML = cuentasNivel1.map(cuenta => {
+                const subcuentas = appData.cuentasContables.filter(c => c.codigo.startsWith(cuenta.codigo) && c.codigo !== cuenta.codigo);
+                
+                return `
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-gray-800">${cuenta.codigo}</span>
+                                <span class="text-gray-600">${cuenta.nombre}</span>
+                            </div>
+                            <span class="font-medium text-gray-800">${formatCurrency(calcularSaldoCuenta(cuenta))}</span>
+                        </div>
+                        ${subcuentas.length > 0 ? `
+                            <div class="ml-6 mt-2 space-y-2">
+                                ${subcuentas.map(subcuenta => `
+                                    <div class="flex items-center justify-between p-2 ${subcuenta.tipo === 'detalle' ? 'bg-white' : 'bg-gray-50'} rounded hover:bg-gray-100 transition-colors">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm ${subcuenta.tipo === 'detalle' ? 'text-gray-600' : 'text-gray-700'}">${subcuenta.codigo}</span>
+                                            <span class="text-sm ${subcuenta.tipo === 'detalle' ? 'text-gray-500' : 'text-gray-600'}">${subcuenta.nombre}</span>
+                                        </div>
+                                        <span class="text-sm font-medium ${subcuenta.tipo === 'detalle' ? 'text-gray-600' : 'text-gray-700'}">
+                                            ${formatCurrency(subcuenta.tipo === 'detalle' ? subcuenta.saldo : calcularSaldoCuenta(subcuenta))}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
                     </div>
-                  ))}
-                </div>
+                `;
+            }).join('');
+        }
 
-                <div className="mt-3 flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                  <span className="font-medium text-gray-700">Totales:</span>
-                  <div className="flex gap-4">
-                    <span className="text-sm">
-                      Debe: {formatCurrency(formData.movimientos.reduce((sum, m) => sum + (parseFloat(m.debe) || 0), 0))}
-                    </span>
-                    <span className="text-sm">
-                      Haber: {formatCurrency(formData.movimientos.reduce((sum, m) => sum + (parseFloat(m.haber) || 0), 0))}
-                    </span>
-                  </div>
-                </div>
-              </div>
+        // Calcular saldo de cuenta
+        function calcularSaldoCuenta(cuenta) {
+            if (cuenta.tipo === 'detalle') {
+                return cuenta.saldo;
+            }
+            
+            const cuentasHijas = appData.cuentasContables.filter(c => 
+                c.codigo.startsWith(cuenta.codigo) && c.codigo !== cuenta.codigo && c.tipo === 'detalle'
+            );
+            
+            return cuentasHijas.reduce((sum, c) => sum + c.saldo, 0);
+        }
 
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarPoliza}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          );
+        // Generar balanza de comprobación
+        function generarBalanza() {
+            const balanzaContent = document.getElementById('balanzaContent');
+            
+            const balanza = appData.cuentasContables
+                .filter(c => c.tipo === 'detalle')
+                .map(cuenta => {
+                    const movimientosDebe = appData.polizas.reduce((sum, poliza) => {
+                        const movsCuenta = poliza.movimientos.filter(m => m.cuenta === cuenta.codigo);
+                        return sum + movsCuenta.reduce((s, m) => s + m.debe, 0);
+                    }, 0);
 
-        case 'verPoliza':
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                Póliza #{editingItem?.numero}
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Fecha</p>
-                  <p className="font-medium">{formatDate(editingItem?.fecha)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Tipo</p>
-                  <p className="font-medium capitalize">{editingItem?.tipo}</p>
-                </div>
-              </div>
+                    const movimientosHaber = appData.polizas.reduce((sum, poliza) => {
+                        const movsCuenta = poliza.movimientos.filter(m => m.cuenta === cuenta.codigo);
+                        return sum + movsCuenta.reduce((s, m) => s + m.haber, 0);
+                    }, 0);
 
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Concepto</p>
-                <p className="font-medium">{editingItem?.concepto}</p>
-              </div>
+                    const saldoDeudor = cuenta.naturaleza === 'deudora' ? cuenta.saldo : 0;
+                    const saldoAcreedor = cuenta.naturaleza === 'acreedora' ? cuenta.saldo : 0;
 
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Movimientos</p>
-                <table className="min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cuenta</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Debe</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Haber</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {editingItem?.movimientos.map((mov, index) => {
-                      const cuenta = cuentasContables.find(c => c.codigo === mov.cuenta);
-                      return (
-                        <tr key={index}>
-                          <td className="px-4 py-2 text-sm">
-                            {mov.cuenta} - {cuenta?.nombre}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-right">
-                            {mov.debe > 0 ? formatCurrency(mov.debe) : ''}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-right">
-                            {mov.haber > 0 ? formatCurrency(mov.haber) : ''}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="bg-gray-100">
-                    <tr>
-                      <td className="px-4 py-2 font-medium">Totales</td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        {formatCurrency(editingItem?.totalDebe)}
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        {formatCurrency(editingItem?.totalHaber)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                    return {
+                        cuenta: cuenta.codigo,
+                        nombre: cuenta.nombre,
+                        movimientosDebe,
+                        movimientosHaber,
+                        saldoDeudor,
+                        saldoAcreedor
+                    };
+                });
 
-              <div className="flex justify-end">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          );
+            const totales = balanza.reduce((acc, row) => ({
+                movimientosDebe: acc.movimientosDebe + row.movimientosDebe,
+                movimientosHaber: acc.movimientosHaber + row.movimientosHaber,
+                saldoDeudor: acc.saldoDeudor + row.saldoDeudor,
+                saldoAcreedor: acc.saldoAcreedor + row.saldoAcreedor
+            }), { movimientosDebe: 0, movimientosHaber: 0, saldoDeudor: 0, saldoAcreedor: 0 });
 
-        case 'credito':
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                {editingItem ? 'Editar Crédito' : 'Nuevo Crédito'}
-              </h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                <select
-                  value={formData.cliente}
-                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="">Seleccionar cliente...</option>
-                  {clientes.map(cliente => (
-                    <option key={cliente.id} value={cliente.id}>
-                      {cliente.nombre} - {cliente.rfc}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            balanzaContent.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuenta</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                <th colspan="2" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Movimientos</th>
+                                <th colspan="2" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Saldos</th>
+                            </tr>
+                            <tr>
+                                <th class="px-6 py-3"></th>
+                                <th class="px-6 py-3"></th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debe</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Haber</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Deudor</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acreedor</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${balanza.map(row => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${row.cuenta}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">${row.nombre}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                        ${formatCurrency(row.movimientosDebe)}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                        ${formatCurrency(row.movimientosHaber)}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                        ${row.saldoDeudor > 0 ? formatCurrency(row.saldoDeudor) : ''}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                        ${row.saldoAcreedor > 0 ? formatCurrency(row.saldoAcreedor) : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot class="bg-gray-100 border-t-2 border-gray-300">
+                            <tr>
+                                <td colspan="2" class="px-6 py-4 text-right font-bold text-gray-900">TOTALES</td>
+                                <td class="px-6 py-4 text-right font-bold text-gray-900">${formatCurrency(totales.movimientosDebe)}</td>
+                                <td class="px-6 py-4 text-right font-bold text-gray-900">${formatCurrency(totales.movimientosHaber)}</td>
+                                <td class="px-6 py-4 text-right font-bold text-gray-900">${formatCurrency(totales.saldoDeudor)}</td>
+                                <td class="px-6 py-4 text-right font-bold text-gray-900">${formatCurrency(totales.saldoAcreedor)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        }
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
-                  <input
-                    type="number"
-                    value={formData.monto}
-                    onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="0.00"
-                  />
+        // Abrir modal
+        function openModal(type, item = null) {
+            currentModal = type;
+            editingItem = item;
+            
+            let modalHTML = '';
+            
+            switch(type) {
+                case 'poliza':
+                    modalHTML = renderPolizaModal();
+                    break;
+                case 'credito':
+                    modalHTML = renderCreditoModal();
+                    break;
+                case 'consigna':
+                    modalHTML = renderConsignaModal();
+                    break;
+                case 'cliente':
+                    modalHTML = renderClienteModal();
+                    break;
+            }
+            
+            document.getElementById('modalContainer').innerHTML = `
+                <div class="modal-backdrop">
+                    <div class="modal-content">
+                        ${modalHTML}
+                    </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plazo (meses)</label>
-                  <input
-                    type="number"
-                    value={formData.plazo}
-                    onChange={(e) => setFormData({ ...formData, plazo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="12"
-                  />
-                </div>
-              </div>
+            `;
+            
+            // Si es una póliza y no hay movimientos, agregar uno
+            if (type === 'poliza' && !editingItem) {
+                setTimeout(() => agregarMovimientoPoliza(), 100);
+            }
+        }
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tasa de Interés (%)</label>
-                  <input
-                    type="number"
-                    value={formData.tasaInteres}
-                    onChange={(e) => setFormData({ ...formData, tasaInteres: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="10"
-                    step="0.1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
-                  <input
-                    type="date"
-                    value={formData.fechaInicio}
-                    onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
+        // Cerrar modal
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+            currentModal = null;
+            editingItem = null;
+        }
 
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarCredito}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          );
-
-        case 'consigna':
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                {editingItem ? 'Editar Consigna' : 'Nueva Consigna'}
-              </h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                <select
-                  value={formData.cliente}
-                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Seleccionar cliente...</option>
-                  {clientes.map(cliente => (
-                    <option key={cliente.id} value={cliente.id}>
-                      {cliente.nombre} - {cliente.rfc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Producto</label>
-                <input
-                  type="text"
-                  value={formData.producto}
-                  onChange={(e) => setFormData({ ...formData, producto: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Nombre del producto"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                  <input
-                    type="number"
-                    value={formData.cantidad}
-                    onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio de Venta</label>
-                  <input
-                    type="number"
-                    value={formData.precioVenta}
-                    onChange={(e) => setFormData({ ...formData, precioVenta: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="0.00"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Consigna</label>
-                  <input
-                    type="date"
-                    value={formData.fechaConsigna}
-                    onChange={(e) => setFormData({ ...formData, fechaConsigna: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Límite</label>
-                  <input
-                    type="date"
-                    value={formData.fechaLimite}
-                    onChange={(e) => setFormData({ ...formData, fechaLimite: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarConsigna}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          );
-
-        case 'cliente':
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                {editingItem ? 'Editar Cliente' : 'Nuevo Cliente'}
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                  <input
-                    type="text"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Nombre completo"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">RFC</label>
-                  <input
-                    type="text"
-                    value={formData.rfc}
-                    onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="RFC"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Teléfono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                <textarea
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Dirección completa"
-                  rows="2"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente</label>
-                  <select
-                    value={formData.tipo}
-                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="menudeo">Menudeo</option>
-                    <option value="mayoreo">Mayoreo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Límite de Crédito</label>
-                  <input
-                    type="number"
-                    value={formData.limiteCredito}
-                    onChange={(e) => setFormData({ ...formData, limiteCredito: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="0.00"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
-                <textarea
-                  value={formData.notas}
-                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Notas adicionales"
-                  rows="3"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarCliente}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          );
-
-        case 'clienteDetalle':
-          const creditosCliente = creditos.filter(c => c.cliente === editingItem?.id.toString());
-          const consignasCliente = consignas.filter(c => c.cliente === editingItem?.id.toString());
-          
-          return (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-800">
-                Detalle del Cliente
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Nombre</p>
-                  <p className="font-medium">{editingItem?.nombre}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">RFC</p>
-                  <p className="font-medium">{editingItem?.rfc}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Teléfono</p>
-                  <p className="font-medium">{editingItem?.telefono}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{editingItem?.email}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-500">Dirección</p>
-                <p className="font-medium">{editingItem?.direccion}</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 py-4 border-t border-gray-200">
-                <div>
-                  <p className="text-sm text-gray-500">Total Compras</p>
-                  <p className="text-xl font-bold text-gray-800">{formatCurrency(editingItem?.totalCompras || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Saldo Pendiente</p>
-                  <p className="text-xl font-bold text-red-600">{formatCurrency(editingItem?.saldoPendiente || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Límite de Crédito</p>
-                  <p className="text-xl font-bold text-gray-800">{formatCurrency(editingItem?.limiteCredito || 0)}</p>
-                </div>
-              </div>
-
-              {creditosCliente.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-gray-800 mb-2">Créditos Activos</h4>
-                  <div className="space-y-2">
-                    {creditosCliente.map(credito => (
-                      <div key={credito.id} className="bg-gray-50 p-3 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{formatCurrency(credito.monto)}</p>
-                            <p className="text-sm text-gray-500">Saldo: {formatCurrency(credito.saldoPendiente)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-gray-500">Vence: {formatDate(credito.fechaVencimiento)}</p>
-                          </div>
+        // Render modal de póliza
+        function renderPolizaModal() {
+            return `
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800">
+                        ${editingItem ? 'Editar Póliza' : 'Nueva Póliza'}
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                            <input type="date" id="polizaFecha" value="${editingItem?.fecha || new Date().toISOString().split('T')[0]}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {consignasCliente.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-gray-800 mb-2">Consignas Pendientes</h4>
-                  <div className="space-y-2">
-                    {consignasCliente.map(consigna => (
-                      <div key={consigna.id} className="bg-gray-50 p-3 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{consigna.producto}</p>
-                            <p className="text-sm text-gray-500">{consigna.cantidad} unidades</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{formatCurrency(consigna.cantidad * consigna.precioVenta)}</p>
-                            <p className="text-sm text-gray-500">Límite: {formatDate(consigna.fechaLimite)}</p>
-                          </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                            <select id="polizaTipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="diario" ${editingItem?.tipo === 'diario' ? 'selected' : ''}>Diario</option>
+                                <option value="ingreso" ${editingItem?.tipo === 'ingreso' ? 'selected' : ''}>Ingreso</option>
+                                <option value="egreso" ${editingItem?.tipo === 'egreso' ? 'selected' : ''}>Egreso</option>
+                            </select>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Concepto</label>
+                        <textarea id="polizaConcepto" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows="2">${editingItem?.concepto || ''}</textarea>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Movimientos</label>
+                            <button type="button" onclick="agregarMovimientoPoliza()" class="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
+                                <i class="fas fa-plus"></i>
+                                Agregar línea
+                            </button>
+                        </div>
+                        
+                        <div id="movimientosContainer" class="space-y-2">
+                            ${editingItem ? editingItem.movimientos.map((mov, index) => renderMovimientoPoliza(index, mov)).join('') : ''}
+                        </div>
+
+                        <div class="mt-3 flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                            <span class="font-medium text-gray-700">Totales:</span>
+                            <div class="flex gap-4">
+                                <span class="text-sm">Debe: <span id="totalDebe">$0.00</span></span>
+                                <span class="text-sm">Haber: <span id="totalHaber">$0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button onclick="guardarPoliza()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Guardar
+                        </button>
+                    </div>
                 </div>
-              )}
+            `;
+        }
 
-              {editingItem?.notas && (
-                <div className="border-t border-gray-200 pt-4">
-                  <p className="text-sm text-gray-500 mb-1">Notas</p>
-                  <p className="text-gray-700">{editingItem.notas}</p>
+        // Render movimiento de póliza
+        function renderMovimientoPoliza(index, movimiento = null) {
+            return `
+                <div class="flex items-center gap-2" data-movimiento-index="${index}">
+                    <select onchange="actualizarTotalesPoliza()" class="cuenta-select flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="">Seleccionar cuenta...</option>
+                        ${appData.cuentasContables
+                            .filter(c => c.tipo === 'detalle')
+                            .map(cuenta => `
+                                <option value="${cuenta.codigo}" ${movimiento?.cuenta === cuenta.codigo ? 'selected' : ''}>
+                                    ${cuenta.codigo} - ${cuenta.nombre}
+                                </option>
+                            `).join('')}
+                    </select>
+                    <input type="number" value="${movimiento?.debe || 0}" onchange="actualizarTotalesPoliza()" 
+                           placeholder="Debe" class="debe-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <input type="number" value="${movimiento?.haber || 0}" onchange="actualizarTotalesPoliza()" 
+                           placeholder="Haber" class="haber-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <button type="button" onclick="eliminarMovimientoPoliza(${index})" class="text-red-600 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-              )}
+            `;
+        }
 
-              <div className="flex justify-end">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          );
+        // Agregar movimiento de póliza
+        function agregarMovimientoPoliza() {
+            const container = document.getElementById('movimientosContainer');
+            const index = container.children.length;
+            container.insertAdjacentHTML('beforeend', renderMovimientoPoliza(index));
+        }
 
-        default:
-          return null;
-      }
-    };
+        // Eliminar movimiento de póliza
+        function eliminarMovimientoPoliza(index) {
+            const container = document.getElementById('movimientosContainer');
+            container.children[index].remove();
+            
+            // Reindexar movimientos
+            Array.from(container.children).forEach((child, newIndex) => {
+                child.setAttribute('data-movimiento-index', newIndex);
+                const deleteBtn = child.querySelector('button');
+                deleteBtn.setAttribute('onclick', `eliminarMovimientoPoliza(${newIndex})`);
+            });
+            
+            actualizarTotalesPoliza();
+        }
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-          {renderModalContent()}
-        </div>
-      </div>
-    );
-  };
+        // Actualizar totales de póliza
+        function actualizarTotalesPoliza() {
+            const movimientos = document.querySelectorAll('#movimientosContainer > div');
+            let totalDebe = 0;
+            let totalHaber = 0;
+            
+            movimientos.forEach(mov => {
+                const debe = parseFloat(mov.querySelector('.debe-input').value) || 0;
+                const haber = parseFloat(mov.querySelector('.haber-input').value) || 0;
+                totalDebe += debe;
+                totalHaber += haber;
+            });
+            
+            document.getElementById('totalDebe').textContent = formatCurrency(totalDebe);
+            document.getElementById('totalHaber').textContent = formatCurrency(totalHaber);
+        }
 
-  // Main App Layout
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">M</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800">Malanguísimas ERP</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">
-              {new Date().toLocaleDateString('es-MX', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </span>
-            <button className="p-2 text-gray-600 hover:text-gray-800">
-              <Clock className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
+        // Guardar póliza
+        function guardarPoliza() {
+            const fecha = document.getElementById('polizaFecha').value;
+            const tipo = document.getElementById('polizaTipo').value;
+            const concepto = document.getElementById('polizaConcepto').value;
+            
+            const movimientos = [];
+            const movimientosElements = document.querySelectorAll('#movimientosContainer > div');
+            
+            movimientosElements.forEach(mov => {
+                const cuenta = mov.querySelector('.cuenta-select').value;
+                const debe = parseFloat(mov.querySelector('.debe-input').value) || 0;
+                const haber = parseFloat(mov.querySelector('.haber-input').value) || 0;
+                
+                if (cuenta && (debe > 0 || haber > 0)) {
+                    movimientos.push({ cuenta, debe, haber });
+                }
+            });
+            
+            if (!concepto) {
+                alert('Por favor ingrese un concepto para la póliza');
+                return;
+            }
+            
+            if (movimientos.length === 0) {
+                alert('Por favor agregue al menos un movimiento');
+                return;
+            }
+            
+            const totalDebe = movimientos.reduce((sum, m) => sum + m.debe, 0);
+            const totalHaber = movimientos.reduce((sum, m) => sum + m.haber, 0);
+            
+            if (Math.abs(totalDebe - totalHaber) > 0.01) {
+                alert('La póliza no está balanceada. El debe y el haber deben ser iguales.');
+                return;
+            }
+            
+            const poliza = {
+                id: editingItem ? editingItem.id : Date.now(),
+                numero: editingItem ? editingItem.numero : appData.polizas.length + 1,
+                fecha,
+                tipo,
+                concepto,
+                movimientos,
+                totalDebe,
+                totalHaber,
+                estado: 'registrada'
+            };
+            
+            if (editingItem) {
+                const index = appData.polizas.findIndex(p => p.id === editingItem.id);
+                appData.polizas[index] = poliza;
+            } else {
+                appData.polizas.push(poliza);
+                
+                // Actualizar saldos de cuentas
+                movimientos.forEach(mov => {
+                    const cuenta = appData.cuentasContables.find(c => c.codigo === mov.cuenta);
+                    if (cuenta) {
+                        const ajuste = cuenta.naturaleza === 'deudora' 
+                            ? mov.debe - mov.haber
+                            : mov.haber - mov.debe;
+                        cuenta.saldo += ajuste;
+                    }
+                });
+            }
+            
+            saveData();
+            closeModal();
+            updatePolizas();
+            updateDashboard();
+        }
 
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="flex px-6">
-          <button
-            onClick={() => setActiveModule('dashboard')}
-            className={`px-6 py-3 border-b-2 transition-colors ${
-              activeModule === 'dashboard' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Dashboard
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveModule('contabilidad')}
-            className={`px-6 py-3 border-b-2 transition-colors ${
-              activeModule === 'contabilidad' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Calculator className="w-4 h-4" />
-              Contabilidad
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveModule('creditos')}
-            className={`px-6 py-3 border-b-2 transition-colors ${
-              activeModule === 'creditos' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Créditos
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveModule('consignas')}
-            className={`px-6 py-3 border-b-2 transition-colors ${
-              activeModule === 'consignas' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Consignas
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveModule('crm')}
-            className={`px-6 py-3 border-b-2 transition-colors ${
-              activeModule === 'crm' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              CRM
-            </div>
-          </button>
-        </div>
-      </nav>
+        // Ver póliza
+        function verPoliza(id) {
+            const poliza = appData.polizas.find(p => p.id === id);
+            if (!poliza) return;
+            
+            const modalHTML = `
+                <div class="modal-backdrop">
+                    <div class="modal-content">
+                        <div class="space-y-4">
+                            <h3 class="text-xl font-semibold text-gray-800">Póliza #${poliza.numero}</h3>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">Fecha</p>
+                                    <p class="font-medium">${formatDate(poliza.fecha)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Tipo</p>
+                                    <p class="font-medium capitalize">${poliza.tipo}</p>
+                                </div>
+                            </div>
 
-      {/* Main Content */}
-      <main className="min-h-[calc(100vh-8rem)]">
-        {activeModule === 'dashboard' && <Dashboard />}
-        {activeModule === 'contabilidad' && <Contabilidad />}
-        {activeModule === 'creditos' && <Creditos />}
-        {activeModule === 'consignas' && <Consignas />}
-        {activeModule === 'crm' && <CRM />}
-      </main>
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Concepto</p>
+                                <p class="font-medium">${poliza.concepto}</p>
+                            </div>
 
-      {/* Modal */}
-      <Modal />
-    </div>
-  );
-};
+                            <div>
+                                <p class="text-sm text-gray-500 mb-2">Movimientos</p>
+                                <table class="min-w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cuenta</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Debe</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Haber</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        ${poliza.movimientos.map(mov => {
+                                            const cuenta = appData.cuentasContables.find(c => c.codigo === mov.cuenta);
+                                            return `
+                                                <tr>
+                                                    <td class="px-4 py-2 text-sm">
+                                                        ${mov.cuenta} - ${cuenta?.nombre || ''}
+                                                    </td>
+                                                    <td class="px-4 py-2 text-sm text-right">
+                                                        ${mov.debe > 0 ? formatCurrency(mov.debe) : ''}
+                                                    </td>
+                                                    <td class="px-4 py-2 text-sm text-right">
+                                                        ${mov.haber > 0 ? formatCurrency(mov.haber) : ''}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                    <tfoot class="bg-gray-100">
+                                        <tr>
+                                            <td class="px-4 py-2 font-medium">Totales</td>
+                                            <td class="px-4 py-2 text-right font-medium">${formatCurrency(poliza.totalDebe)}</td>
+                                            <td class="px-4 py-2 text-right font-medium">${formatCurrency(poliza.totalHaber)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
 
-export default App;
+                            <div class="flex justify-end">
+                                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+
+        // Render modal de crédito
+        function renderCreditoModal() {
+            return `
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800">
+                        ${editingItem ? 'Editar Crédito' : 'Nuevo Crédito'}
+                    </h3>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                        <select id="creditoCliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="">Seleccionar cliente...</option>
+                            ${appData.clientes.map(cliente => `
+                                <option value="${cliente.id}" ${editingItem?.cliente == cliente.id ? 'selected' : ''}>
+                                    ${cliente.nombre} - ${cliente.rfc}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Monto</label>
+                            <input type="number" id="creditoMonto" value="${editingItem?.monto || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                                   placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Plazo (meses)</label>
+                            <input type="number" id="creditoPlazo" value="${editingItem?.plazo || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                                   placeholder="12">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tasa de Interés (%)</label>
+                            <input type="number" id="creditoTasa" value="${editingItem?.tasaInteres || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                                   placeholder="10" step="0.1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+                            <input type="date" id="creditoFechaInicio" value="${editingItem?.fechaInicio || new Date().toISOString().split('T')[0]}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button onclick="guardarCredito()" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Guardar crédito
+        function guardarCredito() {
+            const cliente = document.getElementById('creditoCliente').value;
+            const monto = parseFloat(document.getElementById('creditoMonto').value);
+            const plazo = parseInt(document.getElementById('creditoPlazo').value);
+            const tasaInteres = parseFloat(document.getElementById('creditoTasa').value);
+            const fechaInicio = document.getElementById('creditoFechaInicio').value;
+            
+            if (!cliente || !monto || !plazo || !tasaInteres) {
+                alert('Por favor complete todos los campos');
+                return;
+            }
+            
+            const fechaVencimiento = new Date(fechaInicio);
+            fechaVencimiento.setMonth(fechaVencimiento.getMonth() + plazo);
+            
+            const credito = {
+                id: editingItem ? editingItem.id : Date.now(),
+                cliente,
+                monto,
+                plazo,
+                tasaInteres,
+                fechaInicio,
+                fechaVencimiento: fechaVencimiento.toISOString().split('T')[0],
+                estado: editingItem ? editingItem.estado : 'activo',
+                saldoPendiente: editingItem ? editingItem.saldoPendiente : monto,
+                pagosRealizados: editingItem ? editingItem.pagosRealizados : []
+            };
+            
+            if (editingItem) {
+                const index = appData.creditos.findIndex(c => c.id === editingItem.id);
+                appData.creditos[index] = credito;
+            } else {
+                appData.creditos.push(credito);
+            }
+            
+            saveData();
+            closeModal();
+            updateCreditos();
+            updateDashboard();
+        }
+
+        // Editar crédito
+        function editarCredito(id) {
+            const credito = appData.creditos.find(c => c.id === id);
+            if (credito) {
+                openModal('credito', credito);
+            }
+        }
+
+        // Render modal de consigna
+        function renderConsignaModal() {
+            return `
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800">
+                        ${editingItem ? 'Editar Consigna' : 'Nueva Consigna'}
+                    </h3>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                        <select id="consignaCliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Seleccionar cliente...</option>
+                            ${appData.clientes.map(cliente => `
+                                <option value="${cliente.id}" ${editingItem?.cliente == cliente.id ? 'selected' : ''}>
+                                    ${cliente.nombre} - ${cliente.rfc}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Producto</label>
+                        <input type="text" id="consignaProducto" value="${editingItem?.producto || ''}" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                               placeholder="Nombre del producto">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                            <input type="number" id="consignaCantidad" value="${editingItem?.cantidad || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                                   placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio de Venta</label>
+                            <input type="number" id="consignaPrecio" value="${editingItem?.precioVenta || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                                   placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Consigna</label>
+                            <input type="date" id="consignaFecha" value="${editingItem?.fechaConsigna || new Date().toISOString().split('T')[0]}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Límite</label>
+                            <input type="date" id="consignaFechaLimite" value="${editingItem?.fechaLimite || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button onclick="guardarConsigna()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Guardar consigna
+        function guardarConsigna() {
+            const cliente = document.getElementById('consignaCliente').value;
+            const producto = document.getElementById('consignaProducto').value;
+            const cantidad = parseInt(document.getElementById('consignaCantidad').value);
+            const precioVenta = parseFloat(document.getElementById('consignaPrecio').value);
+            const fechaConsigna = document.getElementById('consignaFecha').value;
+            const fechaLimite = document.getElementById('consignaFechaLimite').value;
+            
+            if (!cliente || !producto || !cantidad || !precioVenta || !fechaLimite) {
+                alert('Por favor complete todos los campos');
+                return;
+            }
+            
+            const consigna = {
+                id: editingItem ? editingItem.id : Date.now(),
+                cliente,
+                producto,
+                cantidad,
+                fechaConsigna,
+                fechaLimite,
+                precioVenta,
+                estado: editingItem ? editingItem.estado : 'pendiente',
+                cantidadVendida: editingItem ? editingItem.cantidadVendida : 0,
+                montoLiquidado: editingItem ? editingItem.montoLiquidado : 0
+            };
+            
+            if (editingItem) {
+                const index = appData.consignas.findIndex(c => c.id === editingItem.id);
+                appData.consignas[index] = consigna;
+            } else {
+                appData.consignas.push(consigna);
+            }
+            
+            saveData();
+            closeModal();
+            updateConsignas();
+            updateDashboard();
+        }
+
+        // Editar consigna
+        function editarConsigna(id) {
+            const consigna = appData.consignas.find(c => c.id === id);
+            if (consigna) {
+                openModal('consigna', consigna);
+            }
+        }
+
+        // Liquidar consigna
+        function liquidarConsigna(id) {
+            const consigna = appData.consignas.find(c => c.id === id);
+            if (consigna && confirm('¿Desea marcar esta consigna como liquidada?')) {
+                consigna.estado = 'liquidada';
+                consigna.fechaLiquidacion = new Date().toISOString().split('T')[0];
+                consigna.cantidadVendida = consigna.cantidad;
+                consigna.montoLiquidado = consigna.cantidad * consigna.precioVenta;
+                
+                saveData();
+                updateConsignas();
+                updateDashboard();
+            }
+        }
+
+        // Render modal de cliente
+        function renderClienteModal() {
+            return `
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800">
+                        ${editingItem ? 'Editar Cliente' : 'Nuevo Cliente'}
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                            <input type="text" id="clienteNombre" value="${editingItem?.nombre || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                   placeholder="Nombre completo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">RFC</label>
+                            <input type="text" id="clienteRFC" value="${editingItem?.rfc || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                   placeholder="RFC">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                            <input type="tel" id="clienteTelefono" value="${editingItem?.telefono || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                   placeholder="Teléfono">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="clienteEmail" value="${editingItem?.email || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                   placeholder="correo@ejemplo.com">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                        <textarea id="clienteDireccion" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                  placeholder="Dirección completa" rows="2">${editingItem?.direccion || ''}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente</label>
+                            <select id="clienteTipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="menudeo" ${editingItem?.tipo === 'menudeo' ? 'selected' : ''}>Menudeo</option>
+                                <option value="mayoreo" ${editingItem?.tipo === 'mayoreo' ? 'selected' : ''}>Mayoreo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Límite de Crédito</label>
+                            <input type="number" id="clienteLimiteCredito" value="${editingItem?.limiteCredito || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                   placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                        <textarea id="clienteNotas" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                  placeholder="Notas adicionales" rows="3">${editingItem?.notas || ''}</textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button onclick="guardarCliente()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Guardar cliente
+        function guardarCliente() {
+            const nombre = document.getElementById('clienteNombre').value;
+            const rfc = document.getElementById('clienteRFC').value;
+            const telefono = document.getElementById('clienteTelefono').value;
+            const email = document.getElementById('clienteEmail').value;
+            const direccion = document.getElementById('clienteDireccion').value;
+            const tipo = document.getElementById('clienteTipo').value;
+            const limiteCredito = parseFloat(document.getElementById('clienteLimiteCredito').value) || 0;
+            const notas = document.getElementById('clienteNotas').value;
+            
+            if (!nombre || !rfc) {
+                alert('Por favor ingrese al menos el nombre y RFC del cliente');
+                return;
+            }
+            
+            const cliente = {
+                id: editingItem ? editingItem.id : Date.now(),
+                nombre,
+                rfc,
+                telefono,
+                email,
+                direccion,
+                tipo,
+                limiteCredito,
+                saldoPendiente: editingItem ? editingItem.saldoPendiente : 0,
+                totalCompras: editingItem ? editingItem.totalCompras : 0,
+                ultimaCompra: editingItem ? editingItem.ultimaCompra : null,
+                notas,
+                fechaRegistro: editingItem ? editingItem.fechaRegistro : new Date().toISOString()
+            };
+            
+            if (editingItem) {
+                const index = appData.clientes.findIndex(c => c.id === editingItem.id);
+                appData.clientes[index] = cliente;
+            } else {
+                appData.clientes.push(cliente);
+            }
+            
+            saveData();
+            closeModal();
+            updateCRM();
+            updateDashboard();
+        }
+
+        // Editar cliente
+        function editarCliente(id) {
+            const cliente = appData.clientes.find(c => c.id === id);
+            if (cliente) {
+                openModal('cliente', cliente);
+            }
+        }
+
+        // Ver cliente
+        function verCliente(id) {
+            const cliente = appData.clientes.find(c => c.id === id);
+            if (!cliente) return;
+            
+            const creditosCliente = appData.creditos.filter(c => c.cliente == cliente.id);
+            const consignasCliente = appData.consignas.filter(c => c.cliente == cliente.id);
+            
+            const modalHTML = `
+                <div class="modal-backdrop">
+                    <div class="modal-content">
+                        <div class="space-y-4">
+                            <h3 class="text-xl font-semibold text-gray-800">Detalle del Cliente</h3>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">Nombre</p>
+                                    <p class="font-medium">${cliente.nombre}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">RFC</p>
+                                    <p class="font-medium">${cliente.rfc}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Teléfono</p>
+                                    <p class="font-medium">${cliente.telefono}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Email</p>
+                                    <p class="font-medium">${cliente.email}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="text-sm text-gray-500">Dirección</p>
+                                <p class="font-medium">${cliente.direccion}</p>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4 py-4 border-t border-gray-200">
+                                <div>
+                                    <p class="text-sm text-gray-500">Total Compras</p>
+                                    <p class="text-xl font-bold text-gray-800">${formatCurrency(cliente.totalCompras)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Saldo Pendiente</p>
+                                    <p class="text-xl font-bold text-red-600">${formatCurrency(cliente.saldoPendiente)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Límite de Crédito</p>
+                                    <p class="text-xl font-bold text-gray-800">${formatCurrency(cliente.limiteCredito)}</p>
+                                </div>
+                            </div>
+
+                            ${creditosCliente.length > 0 ? `
+                                <div>
+                                    <h4 class="font-medium text-gray-800 mb-2">Créditos Activos</h4>
+                                    <div class="space-y-2">
+                                        ${creditosCliente.map(credito => `
+                                            <div class="bg-gray-50 p-3 rounded-lg">
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="font-medium">${formatCurrency(credito.monto)}</p>
+                                                        <p class="text-sm text-gray-500">Saldo: ${formatCurrency(credito.saldoPendiente)}</p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <p class="text-sm text-gray-500">Vence: ${formatDate(credito.fechaVencimiento)}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${consignasCliente.length > 0 ? `
+                                <div>
+                                    <h4 class="font-medium text-gray-800 mb-2">Consignas Pendientes</h4>
+                                    <div class="space-y-2">
+                                        ${consignasCliente.map(consigna => `
+                                            <div class="bg-gray-50 p-3 rounded-lg">
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="font-medium">${consigna.producto}</p>
+                                                        <p class="text-sm text-gray-500">${consigna.cantidad} unidades</p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <p class="font-medium">${formatCurrency(consigna.cantidad * consigna.precioVenta)}</p>
+                                                        <p class="text-sm text-gray-500">Límite: ${formatDate(consigna.fechaLimite)}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${cliente.notas ? `
+                                <div class="border-t border-gray-200 pt-4">
+                                    <p class="text-sm text-gray-500 mb-1">Notas</p>
+                                    <p class="text-gray-700">${cliente.notas}</p>
+                                </div>
+                            ` : ''}
+
+                            <div class="flex justify-end">
+                                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+    </script>
+</body>
+</html>
